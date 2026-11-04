@@ -1,0 +1,106 @@
+import type { MigrationInterface, QueryRunner } from "typeorm";
+
+export class Phase1AuthSettingsFinance1793750000001 implements MigrationInterface {
+  name = "Phase1AuthSettingsFinance1793750000001";
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
+    await queryRunner.query(`CREATE TABLE "organizations" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "name" character varying(160) NOT NULL, "legal_name" character varying(200), "phone" character varying(30), "email" character varying(160), "address" text, "website" character varying(200), "logo_url" character varying(500), "logo_public_id" character varying(255), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_6b031fcd0863e3f6b44230163f9" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE TABLE "organization_settings" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "currency_code" character varying(3) NOT NULL DEFAULT 'NGN', "currency_symbol" character varying(8) NOT NULL DEFAULT '₦', "timezone" character varying(60) NOT NULL DEFAULT 'Africa/Lagos', "receipt_header" text, "receipt_footer" text, "tax_enabled" boolean NOT NULL DEFAULT false, "tax_name" character varying(30) NOT NULL DEFAULT 'VAT', "tax_rate_bps" integer NOT NULL DEFAULT '750', "tax_inclusive" boolean NOT NULL DEFAULT false, "tax_number" character varying(60), "commission_enabled" boolean NOT NULL DEFAULT false, "commission_rate_bps" integer NOT NULL DEFAULT '0', "allow_negative_stock" boolean NOT NULL DEFAULT false, "reminder_days_before_due" integer NOT NULL DEFAULT '3', "default_credit_days" integer NOT NULL DEFAULT '30', "work_start_time" character varying(5) NOT NULL DEFAULT '08:30', "late_grace_minutes" integer NOT NULL DEFAULT '15', "lateness_deduction" bigint NOT NULL DEFAULT '0', "absence_deduction" bigint NOT NULL DEFAULT '0', "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_67a83a1c6256f927137c33ddd7e" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_organization_settings_org" ON "organization_settings" ("organization_id") `);
+    await queryRunner.query(`CREATE TABLE "branches" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "name" character varying(120) NOT NULL, "code" character varying(20) NOT NULL, "address" text, "phone" character varying(30), "is_main" boolean NOT NULL DEFAULT false, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_7f37d3b42defea97f1df0d19535" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_branches_org" ON "branches" ("organization_id") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_branches_org_code" ON "branches" ("organization_id", "code") WHERE deleted_at IS NULL`);
+    await queryRunner.query(`CREATE TABLE "counters" ("organization_id" uuid NOT NULL, "key" character varying(40) NOT NULL, "value" bigint NOT NULL DEFAULT '0', CONSTRAINT "PK_0ce0246410fa7ef2526d6a1e9fa" PRIMARY KEY ("organization_id", "key"))`);
+    await queryRunner.query(`CREATE TABLE "roles" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "key" character varying(40) NOT NULL, "name" character varying(80) NOT NULL, "description" text, "permissions" text array NOT NULL DEFAULT '{}', "is_built_in" boolean NOT NULL DEFAULT false, "is_locked" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_roles_org_key" ON "roles" ("organization_id", "key") WHERE deleted_at IS NULL`);
+    await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "branch_id" uuid, "role_id" uuid NOT NULL, "name" character varying(120) NOT NULL, "email" character varying(160) NOT NULL, "password_hash" character varying(100) NOT NULL, "phone" character varying(30), "is_active" boolean NOT NULL DEFAULT true, "must_change_password" boolean NOT NULL DEFAULT false, "last_login_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_users_org" ON "users" ("organization_id") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_users_email" ON "users" ("email") WHERE deleted_at IS NULL`);
+    await queryRunner.query(`CREATE TABLE "refresh_tokens" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "user_id" uuid NOT NULL, "token_hash" character varying(64) NOT NULL, "expires_at" TIMESTAMP WITH TIME ZONE NOT NULL, "revoked_at" TIMESTAMP WITH TIME ZONE, "user_agent" character varying(255), "ip" character varying(64), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_7d8bee0204106019488c4c50ffa" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_refresh_tokens_hash" ON "refresh_tokens" ("token_hash") `);
+    await queryRunner.query(`CREATE INDEX "IDX_refresh_tokens_user" ON "refresh_tokens" ("user_id") `);
+    await queryRunner.query(`CREATE TABLE "audit_logs" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "user_id" uuid, "user_name" character varying(120), "action" character varying(40) NOT NULL, "entity_type" character varying(60) NOT NULL, "entity_id" uuid, "summary" character varying(255) NOT NULL, "before" jsonb, "after" jsonb, "ip" character varying(64), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_1bb179d048bbc581caa3b013439" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_org_created" ON "audit_logs" ("organization_id", "created_at") `);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_entity" ON "audit_logs" ("organization_id", "entity_type", "entity_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_user" ON "audit_logs" ("organization_id", "user_id") `);
+    await queryRunner.query(`CREATE TABLE "accounts" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "branch_id" uuid, "name" character varying(120) NOT NULL, "type" character varying(10) NOT NULL, "bank_name" character varying(120), "account_number" character varying(30), "opening_balance" bigint NOT NULL DEFAULT '0', "is_default" boolean NOT NULL DEFAULT false, "is_active" boolean NOT NULL DEFAULT true, "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_accounts_type" CHECK ("type" IN ('cash', 'bank', 'pos')), CONSTRAINT "PK_5a7a02c20412299d198e097a8fe" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_accounts_org_type" ON "accounts" ("organization_id", "type") `);
+    await queryRunner.query(`CREATE TABLE "account_transactions" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "account_id" uuid NOT NULL, "branch_id" uuid, "transaction_date" date NOT NULL, "direction" character varying(3) NOT NULL, "amount" bigint NOT NULL DEFAULT '0', "type" character varying(30) NOT NULL, "reference_type" character varying(40), "reference_id" uuid, "description" character varying(255) NOT NULL, "created_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "CHK_account_tx_amount" CHECK ("amount" > 0), CONSTRAINT "CHK_account_tx_direction" CHECK ("direction" IN ('in', 'out')), CONSTRAINT "PK_bcfbf02d6acfb8fe417296f010d" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_account_tx_account_date" ON "account_transactions" ("account_id", "transaction_date") `);
+    await queryRunner.query(`CREATE INDEX "IDX_account_tx_org_date" ON "account_transactions" ("organization_id", "transaction_date") `);
+    await queryRunner.query(`CREATE INDEX "IDX_account_tx_reference" ON "account_transactions" ("organization_id", "reference_type", "reference_id") `);
+    await queryRunner.query(`CREATE TABLE "account_transfers" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "code" character varying(24) NOT NULL, "from_account_id" uuid NOT NULL, "to_account_id" uuid NOT NULL, "amount" bigint NOT NULL DEFAULT '0', "transfer_date" date NOT NULL, "reference" character varying(120), "notes" text, "created_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_account_transfers_amount" CHECK ("amount" > 0), CONSTRAINT "PK_9f867cea579976524868172e9b3" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_account_transfers_org_date" ON "account_transfers" ("organization_id", "transfer_date") `);
+    await queryRunner.query(`CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "branch_id" uuid, "type" character varying(40) NOT NULL, "severity" character varying(10) NOT NULL DEFAULT 'info', "title" character varying(160) NOT NULL, "body" text, "entity_type" character varying(40), "entity_id" uuid, "permission" character varying(60), "dedupe_key" character varying(160) NOT NULL, "resolved_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_notifications_org_created" ON "notifications" ("organization_id", "created_at") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_notifications_open_dedupe" ON "notifications" ("organization_id", "dedupe_key") WHERE resolved_at IS NULL`);
+    await queryRunner.query(`CREATE TABLE "notification_reads" ("notification_id" uuid NOT NULL, "user_id" uuid NOT NULL, "read_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_5c38c21e1fb176c9f55575cd678" PRIMARY KEY ("notification_id", "user_id"))`);
+    await queryRunner.query(`ALTER TABLE "organization_settings" ADD CONSTRAINT "FK_5fbdacce9bdcb454877d068e355" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_9ecf73d5ca57108dc33c87f7d88" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "roles" ADD CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "users" ADD CONSTRAINT "FK_21a659804ed7bf61eb91688dea7" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "users" ADD CONSTRAINT "FK_5a58f726a41264c8b3e86d4a1de" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "users" ADD CONSTRAINT "FK_a2cecd1a3531c0b041e29ba46e1" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "refresh_tokens" ADD CONSTRAINT "FK_3ddc983c5f7bcf132fd8732c3f4" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "audit_logs" ADD CONSTRAINT "FK_145f35b204c731ba7fc1a0be0e7" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "accounts" ADD CONSTRAINT "FK_238d61e0f8ac37278f726efac20" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "accounts" ADD CONSTRAINT "FK_3ab689e515e134445a81873f87b" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "account_transactions" ADD CONSTRAINT "FK_c8666116e82c770e788333f8120" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "account_transfers" ADD CONSTRAINT "FK_6d564162c70da570eaff88ab28f" FOREIGN KEY ("from_account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "account_transfers" ADD CONSTRAINT "FK_8e33aa4101ca49273e7d37b9e5f" FOREIGN KEY ("to_account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "notifications" ADD CONSTRAINT "FK_cb7b1fb018b296f2107e998b2ff" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "notification_reads" ADD CONSTRAINT "FK_30122217fe6ea5e114793efd4d5" FOREIGN KEY ("notification_id") REFERENCES "notifications"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "notification_reads" ADD CONSTRAINT "FK_8a89aac7f3083b0fceadc99c404" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "notification_reads" DROP CONSTRAINT "FK_8a89aac7f3083b0fceadc99c404"`);
+    await queryRunner.query(`ALTER TABLE "notification_reads" DROP CONSTRAINT "FK_30122217fe6ea5e114793efd4d5"`);
+    await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_cb7b1fb018b296f2107e998b2ff"`);
+    await queryRunner.query(`ALTER TABLE "account_transfers" DROP CONSTRAINT "FK_8e33aa4101ca49273e7d37b9e5f"`);
+    await queryRunner.query(`ALTER TABLE "account_transfers" DROP CONSTRAINT "FK_6d564162c70da570eaff88ab28f"`);
+    await queryRunner.query(`ALTER TABLE "account_transactions" DROP CONSTRAINT "FK_c8666116e82c770e788333f8120"`);
+    await queryRunner.query(`ALTER TABLE "accounts" DROP CONSTRAINT "FK_3ab689e515e134445a81873f87b"`);
+    await queryRunner.query(`ALTER TABLE "accounts" DROP CONSTRAINT "FK_238d61e0f8ac37278f726efac20"`);
+    await queryRunner.query(`ALTER TABLE "audit_logs" DROP CONSTRAINT "FK_145f35b204c731ba7fc1a0be0e7"`);
+    await queryRunner.query(`ALTER TABLE "refresh_tokens" DROP CONSTRAINT "FK_3ddc983c5f7bcf132fd8732c3f4"`);
+    await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_a2cecd1a3531c0b041e29ba46e1"`);
+    await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_5a58f726a41264c8b3e86d4a1de"`);
+    await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_21a659804ed7bf61eb91688dea7"`);
+    await queryRunner.query(`ALTER TABLE "roles" DROP CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e"`);
+    await queryRunner.query(`ALTER TABLE "branches" DROP CONSTRAINT "FK_9ecf73d5ca57108dc33c87f7d88"`);
+    await queryRunner.query(`ALTER TABLE "organization_settings" DROP CONSTRAINT "FK_5fbdacce9bdcb454877d068e355"`);
+    await queryRunner.query(`DROP TABLE "notification_reads"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_notifications_open_dedupe"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_notifications_org_created"`);
+    await queryRunner.query(`DROP TABLE "notifications"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_account_transfers_org_date"`);
+    await queryRunner.query(`DROP TABLE "account_transfers"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_account_tx_reference"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_account_tx_org_date"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_account_tx_account_date"`);
+    await queryRunner.query(`DROP TABLE "account_transactions"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_accounts_org_type"`);
+    await queryRunner.query(`DROP TABLE "accounts"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_audit_logs_user"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_audit_logs_entity"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_audit_logs_org_created"`);
+    await queryRunner.query(`DROP TABLE "audit_logs"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_refresh_tokens_user"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_refresh_tokens_hash"`);
+    await queryRunner.query(`DROP TABLE "refresh_tokens"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_users_email"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_users_org"`);
+    await queryRunner.query(`DROP TABLE "users"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_roles_org_key"`);
+    await queryRunner.query(`DROP TABLE "roles"`);
+    await queryRunner.query(`DROP TABLE "counters"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_branches_org_code"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_branches_org"`);
+    await queryRunner.query(`DROP TABLE "branches"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_organization_settings_org"`);
+    await queryRunner.query(`DROP TABLE "organization_settings"`);
+    await queryRunner.query(`DROP TABLE "organizations"`);
+  }
+}

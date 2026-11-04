@@ -1,0 +1,101 @@
+import type { MigrationInterface, QueryRunner } from "typeorm";
+
+export class Phase5EmployeesPayroll1793750000005 implements MigrationInterface {
+  name = "Phase5EmployeesPayroll1793750000005";
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE TABLE "employees" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "branch_id" uuid NOT NULL, "user_id" uuid, "code" character varying(20) NOT NULL, "first_name" character varying(80) NOT NULL, "last_name" character varying(80) NOT NULL, "photo_url" character varying(500), "photo_public_id" character varying(255), "phone" character varying(30), "email" character varying(160), "address" text, "job_title" character varying(80), "start_date" date NOT NULL, "end_date" date, "status" character varying(12) NOT NULL DEFAULT 'active', "pay_frequency" character varying(10) NOT NULL DEFAULT 'monthly', "salary" bigint NOT NULL DEFAULT '0', "commission_rate_bps" integer, "bank_name" character varying(120), "bank_account_number" character varying(30), "bank_account_name" character varying(160), "next_of_kin_name" character varying(160), "next_of_kin_phone" character varying(30), "next_of_kin_relationship" character varying(60), "next_of_kin_address" text, "guarantor_name" character varying(160), "guarantor_phone" character varying(30), "guarantor_address" text, "guarantor_relationship" character varying(60), "guarantor_occupation" character varying(120), "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_b9535a98350d5b26e7eb0c26af4" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_employees_org_status" ON "employees" ("organization_id", "status") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_employees_org_code" ON "employees" ("organization_id", "code") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_employees_org_user" ON "employees" ("organization_id", "user_id") WHERE user_id IS NOT NULL AND deleted_at IS NULL`);
+    await queryRunner.query(`CREATE TABLE "employee_documents" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "name" character varying(120) NOT NULL, "category" character varying(40), "url" character varying(500) NOT NULL, "public_id" character varying(255) NOT NULL, "mime_type" character varying(100), "uploaded_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_c19b36f5e604e261fb430293b68" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_employee_documents_employee" ON "employee_documents" ("employee_id") `);
+    await queryRunner.query(`CREATE TABLE "attendance" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "branch_id" uuid NOT NULL, "attendance_date" date NOT NULL, "status" character varying(10) NOT NULL, "clock_in_at" TIMESTAMP WITH TIME ZONE, "clock_out_at" TIMESTAMP WITH TIME ZONE, "minutes_late" integer NOT NULL DEFAULT '0', "notes" text, "source" character varying(10) NOT NULL DEFAULT 'manual', "recorded_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ee0ffe42c1f1a01e72b725c0cb2" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_attendance_employee_date" ON "attendance" ("employee_id", "attendance_date") `);
+    await queryRunner.query(`CREATE INDEX "IDX_attendance_org_date" ON "attendance" ("organization_id", "attendance_date") `);
+    await queryRunner.query(`CREATE TABLE "leave_requests" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "type" character varying(12) NOT NULL, "start_date" date NOT NULL, "end_date" date NOT NULL, "days" integer NOT NULL DEFAULT '1', "reason" text, "status" character varying(10) NOT NULL DEFAULT 'pending', "requested_by_id" uuid, "reviewed_by_id" uuid, "reviewed_at" TIMESTAMP WITH TIME ZONE, "review_note" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_leave_requests_dates" CHECK ("end_date" >= "start_date"), CONSTRAINT "PK_d3abcf9a16cef1450129e06fa9f" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_leave_requests_org_status" ON "leave_requests" ("organization_id", "status") `);
+    await queryRunner.query(`CREATE INDEX "IDX_leave_requests_employee" ON "leave_requests" ("employee_id", "start_date") `);
+    await queryRunner.query(`CREATE TABLE "payroll_runs" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "branch_id" uuid, "code" character varying(24) NOT NULL, "frequency" character varying(10) NOT NULL, "period_start" date NOT NULL, "period_end" date NOT NULL, "pay_date" date NOT NULL, "status" character varying(12) NOT NULL DEFAULT 'draft', "total_gross" bigint NOT NULL DEFAULT '0', "total_deductions" bigint NOT NULL DEFAULT '0', "total_net" bigint NOT NULL DEFAULT '0', "total_paid" bigint NOT NULL DEFAULT '0', "notes" text, "created_by_id" uuid, "approved_by_id" uuid, "approved_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_payroll_runs_status" CHECK ("status" IN ('draft', 'approved', 'paid', 'cancelled')), CONSTRAINT "PK_6049f42c972640c0eb99ba8035e" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_payroll_runs_org_period" ON "payroll_runs" ("organization_id", "period_start") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_payroll_runs_org_code" ON "payroll_runs" ("organization_id", "code") `);
+    await queryRunner.query(`CREATE TABLE "payroll_items" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "run_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "basic_salary" bigint NOT NULL DEFAULT '0', "allowances" bigint NOT NULL DEFAULT '0', "allowance_lines" jsonb NOT NULL DEFAULT '[]', "bonus" bigint NOT NULL DEFAULT '0', "commission" bigint NOT NULL DEFAULT '0', "gross_pay" bigint NOT NULL DEFAULT '0', "lateness_deduction" bigint NOT NULL DEFAULT '0', "absence_deduction" bigint NOT NULL DEFAULT '0', "loan_deduction" bigint NOT NULL DEFAULT '0', "advance_deduction" bigint NOT NULL DEFAULT '0', "other_deductions" bigint NOT NULL DEFAULT '0', "deduction_lines" jsonb NOT NULL DEFAULT '[]', "loan_deduction_lines" jsonb NOT NULL DEFAULT '[]', "total_deductions" bigint NOT NULL DEFAULT '0', "net_pay" bigint NOT NULL DEFAULT '0', "amount_paid" bigint NOT NULL DEFAULT '0', "status" character varying(10) NOT NULL DEFAULT 'pending', "days_late" integer NOT NULL DEFAULT '0', "days_absent" integer NOT NULL DEFAULT '0', "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "CHK_payroll_items_paid" CHECK ("amount_paid" >= 0 AND "amount_paid" <= GREATEST("net_pay", 0)), CONSTRAINT "PK_c03d4c6f2f5fb77fc771c9c0ba4" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_payroll_items_run_employee" ON "payroll_items" ("run_id", "employee_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_payroll_items_employee" ON "payroll_items" ("employee_id") `);
+    await queryRunner.query(`CREATE TABLE "payroll_payments" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "run_id" uuid NOT NULL, "payroll_item_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "amount" bigint NOT NULL DEFAULT '0', "method" character varying(10) NOT NULL, "account_id" uuid NOT NULL, "payment_date" date NOT NULL, "reference" character varying(120), "paid_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_payroll_payments_amount" CHECK ("amount" > 0), CONSTRAINT "PK_41e701544ef7ee7160a4af11995" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_payroll_payments_item" ON "payroll_payments" ("payroll_item_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_payroll_payments_employee" ON "payroll_payments" ("organization_id", "employee_id") `);
+    await queryRunner.query(`CREATE TABLE "payslips" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "run_id" uuid NOT NULL, "payroll_item_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "code" character varying(30) NOT NULL, "snapshot" jsonb NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_2b1cd07059daf60cc440c9976e1" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_payslips_item" ON "payslips" ("payroll_item_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_payslips_employee" ON "payslips" ("organization_id", "employee_id") `);
+    await queryRunner.query(`CREATE TABLE "loans" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "employee_id" uuid NOT NULL, "code" character varying(24) NOT NULL, "type" character varying(10) NOT NULL, "principal" bigint NOT NULL DEFAULT '0', "issue_date" date NOT NULL, "installment_amount" bigint NOT NULL DEFAULT '0', "amount_repaid" bigint NOT NULL DEFAULT '0', "status" character varying(12) NOT NULL DEFAULT 'active', "method" character varying(10) NOT NULL, "account_id" uuid NOT NULL, "reference" character varying(120), "notes" text, "created_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_loans_principal" CHECK ("principal" > 0), CONSTRAINT "CHK_loans_repaid" CHECK ("amount_repaid" >= 0 AND "amount_repaid" <= "principal"), CONSTRAINT "PK_5c6942c1e13e4de135c5203ee61" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_loans_org_employee_status" ON "loans" ("organization_id", "employee_id", "status") `);
+    await queryRunner.query(`CREATE UNIQUE INDEX "UQ_loans_org_code" ON "loans" ("organization_id", "code") `);
+    await queryRunner.query(`CREATE TABLE "loan_repayments" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL, "loan_id" uuid NOT NULL, "payroll_item_id" uuid, "amount" bigint NOT NULL DEFAULT '0', "repayment_date" date NOT NULL, "source" character varying(10) NOT NULL, "method" character varying(10), "account_id" uuid, "created_by_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "CHK_loan_repayments_amount" CHECK ("amount" > 0), CONSTRAINT "PK_a37968e2dcfb72f910f5480cc16" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_loan_repayments_loan" ON "loan_repayments" ("loan_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_loan_repayments_item" ON "loan_repayments" ("payroll_item_id") `);
+    await queryRunner.query(`ALTER TABLE "employees" ADD CONSTRAINT "FK_3d3bc4729062b93fb56b084d786" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "employees" ADD CONSTRAINT "FK_457a39c666de2686596e502eb8c" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "employees" ADD CONSTRAINT "FK_2d83c53c3e553a48dadb9722e38" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "employee_documents" ADD CONSTRAINT "FK_7fce49bcbfe15a73953b2809944" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "attendance" ADD CONSTRAINT "FK_2be2f615d3c20d620c6485d5463" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "leave_requests" ADD CONSTRAINT "FK_52b4b7c7d295e204add6dbe0a09" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payroll_runs" ADD CONSTRAINT "FK_68be0e2eab9c910837349cee1ef" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payroll_items" ADD CONSTRAINT "FK_7d87755c3bad3b2a196c47e8f45" FOREIGN KEY ("run_id") REFERENCES "payroll_runs"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payroll_items" ADD CONSTRAINT "FK_b93e8155ef805b7ef6013634532" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payroll_payments" ADD CONSTRAINT "FK_d7aa8dfab3ae54da418abf56e00" FOREIGN KEY ("payroll_item_id") REFERENCES "payroll_items"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payroll_payments" ADD CONSTRAINT "FK_bfc9e219ed70a955b4cd584b266" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "payslips" ADD CONSTRAINT "FK_b367be551b0e765ffd86bb254b0" FOREIGN KEY ("payroll_item_id") REFERENCES "payroll_items"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "loans" ADD CONSTRAINT "FK_c550655a4f927be6e5fc53b357f" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "loans" ADD CONSTRAINT "FK_c283021e393bbf9f04c4656b292" FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "loan_repayments" ADD CONSTRAINT "FK_fe78de3cafcee22d993dc917be1" FOREIGN KEY ("loan_id") REFERENCES "loans"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "loan_repayments" DROP CONSTRAINT "FK_fe78de3cafcee22d993dc917be1"`);
+    await queryRunner.query(`ALTER TABLE "loans" DROP CONSTRAINT "FK_c283021e393bbf9f04c4656b292"`);
+    await queryRunner.query(`ALTER TABLE "loans" DROP CONSTRAINT "FK_c550655a4f927be6e5fc53b357f"`);
+    await queryRunner.query(`ALTER TABLE "payslips" DROP CONSTRAINT "FK_b367be551b0e765ffd86bb254b0"`);
+    await queryRunner.query(`ALTER TABLE "payroll_payments" DROP CONSTRAINT "FK_bfc9e219ed70a955b4cd584b266"`);
+    await queryRunner.query(`ALTER TABLE "payroll_payments" DROP CONSTRAINT "FK_d7aa8dfab3ae54da418abf56e00"`);
+    await queryRunner.query(`ALTER TABLE "payroll_items" DROP CONSTRAINT "FK_b93e8155ef805b7ef6013634532"`);
+    await queryRunner.query(`ALTER TABLE "payroll_items" DROP CONSTRAINT "FK_7d87755c3bad3b2a196c47e8f45"`);
+    await queryRunner.query(`ALTER TABLE "payroll_runs" DROP CONSTRAINT "FK_68be0e2eab9c910837349cee1ef"`);
+    await queryRunner.query(`ALTER TABLE "leave_requests" DROP CONSTRAINT "FK_52b4b7c7d295e204add6dbe0a09"`);
+    await queryRunner.query(`ALTER TABLE "attendance" DROP CONSTRAINT "FK_2be2f615d3c20d620c6485d5463"`);
+    await queryRunner.query(`ALTER TABLE "employee_documents" DROP CONSTRAINT "FK_7fce49bcbfe15a73953b2809944"`);
+    await queryRunner.query(`ALTER TABLE "employees" DROP CONSTRAINT "FK_2d83c53c3e553a48dadb9722e38"`);
+    await queryRunner.query(`ALTER TABLE "employees" DROP CONSTRAINT "FK_457a39c666de2686596e502eb8c"`);
+    await queryRunner.query(`ALTER TABLE "employees" DROP CONSTRAINT "FK_3d3bc4729062b93fb56b084d786"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_loan_repayments_item"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_loan_repayments_loan"`);
+    await queryRunner.query(`DROP TABLE "loan_repayments"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_loans_org_code"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_loans_org_employee_status"`);
+    await queryRunner.query(`DROP TABLE "loans"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_payslips_employee"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_payslips_item"`);
+    await queryRunner.query(`DROP TABLE "payslips"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_payroll_payments_employee"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_payroll_payments_item"`);
+    await queryRunner.query(`DROP TABLE "payroll_payments"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_payroll_items_employee"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_payroll_items_run_employee"`);
+    await queryRunner.query(`DROP TABLE "payroll_items"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_payroll_runs_org_code"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_payroll_runs_org_period"`);
+    await queryRunner.query(`DROP TABLE "payroll_runs"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_leave_requests_employee"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_leave_requests_org_status"`);
+    await queryRunner.query(`DROP TABLE "leave_requests"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_attendance_org_date"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_attendance_employee_date"`);
+    await queryRunner.query(`DROP TABLE "attendance"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_employee_documents_employee"`);
+    await queryRunner.query(`DROP TABLE "employee_documents"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_employees_org_user"`);
+    await queryRunner.query(`DROP INDEX "public"."UQ_employees_org_code"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_employees_org_status"`);
+    await queryRunner.query(`DROP TABLE "employees"`);
+  }
+}

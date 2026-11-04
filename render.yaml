@@ -1,0 +1,53 @@
+# Render Blueprint — ShowroomPro API on the free plan.
+# Render → New → Blueprint → pick this repo. You'll be asked for the values marked `sync: false`.
+# The database is the existing Aiven Postgres (DATABASE_URL), not a Render database.
+# Only the variables ShowroomPro reads are listed. The EMAIL_*, FIREBASE_*, GOOGLE_*, SOCKET_*, OTP_*,
+# AI_KEYS_SECRET… entries in a local .env come from another project and are not used here.
+services:
+  - type: web
+    name: showroompro-api
+    runtime: node
+    plan: free
+    region: frankfurt # closest Render region to Lagos
+    rootDir: server
+    buildCommand: npm ci
+    # Free instances can't use a pre-deploy command, so migrations run on every start (a no-op when up to date).
+    startCommand: npm run migration:run && npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # ── Database (Aiven) ─────────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false # paste the Aiven connection string
+      - key: DB_SSL
+        value: "true"
+      - key: DB_LOGGING
+        value: "false"
+      # ── Auth ─────────────────────────────────────────────────────────────
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: BCRYPT_ROUNDS
+        value: "10"
+      # ── URLs ─────────────────────────────────────────────────────────────
+      - key: APP_URL
+        sync: false # this service's URL, e.g. https://showroompro-api.onrender.com (used in WhatsApp receipt links)
+      - key: CORS_ORIGINS
+        sync: false # your frontend URL(s), comma-separated, e.g. https://showroompro.vercel.app
+      # ── File uploads ─────────────────────────────────────────────────────
+      - key: CLOUDINARY_URL
+        sync: false # cloudinary://key:secret@cloud_name
+      # ── Reminders ────────────────────────────────────────────────────────
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: SCHEDULER_INTERVAL_MINUTES
+        value: "60"

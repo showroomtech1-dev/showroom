@@ -49,6 +49,14 @@ export interface OrganizationSettings {
   lateGraceMinutes: number
   latenessDeduction: number
   absenceDeduction: number
+  emailDigestEnabled: boolean
+  /** Local hour (0–23) after which the daily summary email goes out. */
+  emailDigestHour: number
+  emailAlertsEnabled: boolean
+  emailReceiptsEnabled: boolean
+  emailDebtRemindersAuto: boolean
+  emailPayslipsEnabled: boolean
+  lastDigestDate: string | null
 }
 
 export interface SessionData {

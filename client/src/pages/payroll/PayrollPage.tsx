@@ -6,6 +6,7 @@ import { PayrollEndpoints } from "@/endpoints/payroll.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { EmailPayslipButton } from "@/components/payroll/EmailPayslipButton"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { Pagination } from "@/components/shared/Pagination"
 import { PayrollRunDetailModal, PreparePayrollModal } from "@/components/payroll/PayrollRunModal"
@@ -137,9 +138,12 @@ export default function PayrollPage() {
                       {formatMoney(ps.snapshot.netPay)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" onClick={() => PayrollEndpoints.openPayslipPdf(ps.id)}>
-                        <FileText className="h-3.5 w-3.5" /> Payslip PDF
-                      </Button>
+                      <div className="flex justify-end gap-1.5">
+                        <Button variant="outline" size="sm" onClick={() => PayrollEndpoints.openPayslipPdf(ps.id)}>
+                          <FileText className="h-3.5 w-3.5" /> Payslip PDF
+                        </Button>
+                        <EmailPayslipButton payslipId={ps.id} />
+                      </div>
                     </td>
                   </tr>
                 ))}

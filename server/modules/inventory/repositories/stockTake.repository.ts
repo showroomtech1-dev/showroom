@@ -63,6 +63,14 @@ export class StockTakeRepository {
     return rows[0] ?? null;
   }
 
+  async findActiveByBranch(organizationId: string, branchId: string, tx?: Tx): Promise<StockTakeDTO | null> {
+    const rows: StockTakeDTO[] = await db(tx).query(
+      `${SELECT_TAKE} WHERE t.organization_id = $1 AND t.branch_id = $2 AND t.status = 'in_progress' AND t.deleted_at IS NULL ORDER BY t.created_at DESC LIMIT 1`,
+      [organizationId, branchId]
+    );
+    return rows[0] ?? null;
+  }
+
   async items(stockTakeId: string, f: { page: number; limit: number; search?: string; uncountedOnly?: boolean }): Promise<PagedRows<StockTakeItemDTO>> {
     const p = new SqlParams();
     const where = [`i.stock_take_id = ${p.add(stockTakeId)}`];

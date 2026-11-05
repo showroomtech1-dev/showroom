@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { ArrowRightLeft, ClipboardList, Plus, Sliders } from "lucide-react"
+import { ArrowRightLeft, ClipboardList, Plus, Sliders, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
+  useCancelStockTake,
   useInventoryValuation,
   useStartStockTake,
   useStockAlerts,
@@ -58,8 +59,18 @@ export default function InventoryPage() {
   })
   const valuationQuery = useInventoryValuation(activeBranchId || undefined)
   const startTake = useStartStockTake()
+  const cancelTake = useCancelStockTake()
+
+  const activeInProgressTake = (takesQuery.data?.data ?? []).find(
+    (t) => t.status === "in_progress"
+  )
 
   const handleStartTake = async () => {
+    if (activeInProgressTake) {
+      toast.info(`Resuming active stock take ${activeInProgressTake.code}`)
+      setActiveTakeId(activeInProgressTake.id)
+      return
+    }
     try {
       const created = await startTake.mutateAsync({
         branchId: activeBranchId || undefined,
@@ -84,8 +95,17 @@ export default function InventoryPage() {
         </div>
         {can("inventory.stocktake") && (
           <Button size="sm" onClick={handleStartTake} disabled={startTake.isPending}>
-            <Plus className="h-4 w-4" />
-            Start Stock Take
+            {activeInProgressTake ? (
+              <>
+                <ClipboardList className="h-4 w-4" />
+                Resume Stock Take ({activeInProgressTake.code})
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                Start Stock Take
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -155,7 +175,12 @@ export default function InventoryPage() {
                   <th className="px-4 py-3">Item / Variant</th>
                   <th className="px-4 py-3">SKU</th>
                   <th className="px-4 py-3 text-right">Qty</th>
-                  <th className="px-4 py-3 text-right">Reorder</th>
+                  <th
+                    className="px-4 py-3 text-right"
+                    title="Low-stock alert threshold — warns you when Qty drops to or below this number"
+                  >
+                    Reorder (Min)
+                  </th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Selling Value</th>
                   <th className="px-4 py-3 text-right">Actions</th>
@@ -248,7 +273,12 @@ export default function InventoryPage() {
       )}
 
       {tab === "takes" && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-indigo-200/70 bg-indigo-50/60 px-4 py-3 text-xs text-slate-700 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-slate-300">
+            <span className="font-bold text-indigo-700 dark:text-indigo-300">What is a Stock Take (STK)? </span>
+            A physical shelf audit that compares your computer stock (<span className="font-semibold">System Qty</span>) against what is actually on your showroom floor (<span className="font-semibold">Counted Qty</span>). Open a sheet to enter your physical counts, then click <span className="font-semibold">Complete &amp; Post Variances</span> to automatically update your stock levels.
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
               <tr>
@@ -271,15 +301,40 @@ export default function InventoryPage() {
                     <StatusBadge status={t.status} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button variant="outline" size="sm" onClick={() => setActiveTakeId(t.id)}>
-                      <ClipboardList className="h-3.5 w-3.5" />
-                      Open Sheet
-                    </Button>
+                    <div className="inline-flex items-center justify-end gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => setActiveTakeId(t.id)}>
+                        <ClipboardList className="h-3.5 w-3.5" />
+                        Open Sheet
+                      </Button>
+                      {t.status === "in_progress" && can("inventory.stocktake") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Cancel this stock take session"
+                          disabled={cancelTake.isPending}
+                          onClick={async () => {
+                            try {
+                              await cancelTake.mutateAsync(t.id)
+                              toast.success(`Stock take ${t.code} cancelled`)
+                            } catch (err) {
+                              toast.error(
+                                err instanceof Error ? err.message : "Could not cancel stock take"
+                              )
+                            }
+                          }}
+                          className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -233,3 +233,14 @@ export function useCloseCashup() {
     onSuccess: () => qc.invalidateQueries({ queryKey: [CASHUPS_KEY] }),
   })
 }
+
+/** Emails the receipt to the sale's customer; the server explains if there's no email address. */
+export function useEmailReceipt() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await SaleEndpoints.emailReceipt(id)
+      if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode)
+      return res.data
+    },
+  })
+}

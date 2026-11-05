@@ -51,6 +51,7 @@ File uploads (product photos, receipts, payment proof, staff documents, logo) ne
 - Every route declares a permission guard. A route without one is blocked with `403` at boot (deny by default).
 - Reports and statements take `?format=json|csv|xlsx|pdf`. Exports need `report.export`.
 - Idempotency: send a `clientRef` (8–64 chars) on sales, payments and expenses. A retry with the same value returns the original record instead of creating a duplicate.
+- Offline sales: the web app queues sales made without a connection and syncs them later with their real `soldAt` time. Any seller may send a `soldAt` up to 72 hours old; older times need `sale.backdate`.
 
 ## Endpoints by phase (how to try each phase)
 

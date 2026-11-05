@@ -1,4 +1,4 @@
-import { openPdfInNewTab, wrapCall } from "@/transport/http"
+import { openPdfInNewTab, printPdf, wrapCall } from "@/transport/http"
 import type {
   CashReconciliation,
   CashupPreview,
@@ -25,6 +25,13 @@ export const SaleEndpoints = {
 
   openReceiptPdf: (id: string, size: "thermal" | "a4" = "thermal") =>
     openPdfInNewTab(`/api/v1/sales/${id}/receipt`, { size }),
+
+  printReceipt: (id: string, size: "thermal" | "a4" = "thermal") =>
+    printPdf(`/api/v1/sales/${id}/receipt`, { size }),
+
+  /** Emails the receipt (PDF attached) to the sale's customer. */
+  emailReceipt: (id: string) =>
+    wrapCall<{ sentTo: string } | null>("POST", `/api/v1/sales/${id}/email`),
 
   share: (id: string) =>
     wrapCall<{ receiptUrl: string; message: string; whatsappUrl: string }>("GET", `/api/v1/sales/${id}/share`),

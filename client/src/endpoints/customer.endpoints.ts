@@ -33,6 +33,9 @@ export const CustomerEndpoints = {
   downloadStatement: (id: string, format: "pdf" | "xlsx" | "csv", params?: Record<string, unknown>) =>
     downloadFile(`/api/v1/customers/${id}/statement`, `customer-statement.${format}`, { ...params, format }),
 
+  emailReminder: (id: string) =>
+    wrapCall<{ sentTo: string } | null>("POST", `/api/v1/customers/${id}/reminder/email`),
+
   reminder: (id: string) =>
     wrapCall<{ message: string; whatsappUrl: string; balance: number }>("GET", `/api/v1/customers/${id}/reminder`),
 

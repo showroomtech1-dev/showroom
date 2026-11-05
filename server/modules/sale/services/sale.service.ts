@@ -26,6 +26,9 @@ import type { SaleCreatedDTO, SaleDetailDTO } from "../dto/sale.dto";
 import { SaleRepository } from "../repositories/sale.repository";
 import type { CreateSaleInput, ListSalesQuery } from "../validators/sale.schema";
 
+/** How old a sale time may be without the backdate permission (sales queued offline). */
+const OFFLINE_SYNC_HOURS = 72;
+
 export interface CreateSaleOptions {
   /** Prices agreed on a quotation may differ from the list price without `sale.priceoverride`. */
   agreedPrices?: boolean;
@@ -105,8 +108,12 @@ export class SaleService {
 
     let soldAt = new Date();
     if (data.soldAt) {
-      assertPermission(actor, "sale.backdate", "You cannot record a sale with an earlier date");
       soldAt = new Date(data.soldAt);
+      // Sales made offline sync later with the time they really happened. Anyone who can sell may send a
+      // time up to OFFLINE_SYNC_HOURS old; anything older is a true backdate and needs `sale.backdate`.
+      if (Date.now() - soldAt.getTime() > OFFLINE_SYNC_HOURS * 3_600_000) {
+        assertPermission(actor, "sale.backdate", "You cannot record a sale with an earlier date");
+      }
       if (soldAt.getTime() > Date.now() + 60_000) throw AppError.badRequest("A sale cannot be dated in the future");
     }
     const saleDate = toDateIn(soldAt, settings.timezone);

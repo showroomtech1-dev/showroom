@@ -1,9 +1,9 @@
-import { CheckCircle2, ExternalLink, FileText, MessageCircle, Printer } from "lucide-react"
+import { CheckCircle2, ExternalLink, FileText, Mail, MessageCircle, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { SaleEndpoints } from "@/endpoints/sale.endpoints"
-import { useShareSale } from "@/hooks/useSales"
+import { useEmailReceipt, useShareSale } from "@/hooks/useSales"
 import { formatMoney } from "@/lib/money"
 import type { SaleCreatedResult } from "@/types/sale.types"
 
@@ -15,9 +15,19 @@ interface PosReceiptDialogProps {
 
 export function PosReceiptDialog({ open, result, onClose }: PosReceiptDialogProps) {
   const shareMutation = useShareSale()
+  const emailMutation = useEmailReceipt()
 
   if (!result) return null
   const { sale, changeDue, creditApplied } = result
+
+  const handleEmail = async () => {
+    try {
+      const sent = await emailMutation.mutateAsync(sale.id)
+      toast.success(`Receipt emailed to ${sent.sentTo}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not email the receipt")
+    }
+  }
 
   const handleWhatsAppShare = async () => {
     try {
@@ -79,11 +89,19 @@ export function PosReceiptDialog({ open, result, onClose }: PosReceiptDialogProp
         <div className="grid grid-cols-2 gap-2.5">
           <Button
             variant="outline"
+            onClick={() => SaleEndpoints.printReceipt(sale.id, "thermal").catch(() => toast.error("Could not open the print dialog"))}
+            data-cy="pos-receipt-print"
+          >
+            <Printer className="h-4 w-4" />
+            Print Receipt
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => SaleEndpoints.openReceiptPdf(sale.id, "thermal")}
             data-cy="pos-receipt-thermal"
           >
-            <Printer className="h-4 w-4" />
-            Thermal (80mm)
+            <FileText className="h-4 w-4" />
+            Thermal PDF (80mm)
           </Button>
           <Button
             variant="outline"
@@ -110,6 +128,18 @@ export function PosReceiptDialog({ open, result, onClose }: PosReceiptDialogProp
             <ExternalLink className="h-4 w-4" />
             Digital Receipt
           </Button>
+          {sale.customerId && (
+            <Button
+              variant="outline"
+              className="col-span-2"
+              onClick={handleEmail}
+              disabled={emailMutation.isPending}
+              data-cy="pos-receipt-email"
+            >
+              <Mail className="h-4 w-4" />
+              {emailMutation.isPending ? "Sending…" : "Email Receipt to Customer"}
+            </Button>
+          )}
         </div>
 
         <Button className="w-full" onClick={onClose} data-cy="pos-new-sale">

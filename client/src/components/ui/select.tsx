@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FieldTooltip } from "@/components/ui/input"
 
 export interface SelectOption {
   value: string
@@ -12,6 +13,8 @@ export interface SelectOption {
 export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "onChange"> {
   label?: string
   error?: string
+  hint?: string
+  tooltip?: string
   placeholder?: string
   options?: SelectOption[]
   icon?: React.ReactNode
@@ -44,6 +47,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       className,
       label,
       error,
+      hint,
+      tooltip,
       placeholder,
       options,
       icon,
@@ -239,13 +244,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label
-            htmlFor={id}
-            title={label}
-            className="block truncate whitespace-nowrap text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300"
-          >
-            {label}
-          </label>
+          <div className="flex items-center gap-1.5">
+            <label
+              htmlFor={id}
+              title={label}
+              className="block truncate whitespace-nowrap text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300"
+            >
+              {label}
+            </label>
+            {tooltip && <FieldTooltip text={tooltip} />}
+          </div>
         )}
 
         {/* Hidden native select for form compatibility / refs if needed */}
@@ -397,7 +405,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             document.body
           )}
 
-        {error && <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>}
+        {error ? (
+          <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>
+        ) : hint ? (
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>
+        ) : null}
       </div>
     )
   }

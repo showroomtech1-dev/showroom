@@ -222,6 +222,9 @@ export function StockTakeSheetModal({ stockTakeId, onClose }: StockTakeSheetModa
       maxWidth="max-w-3xl"
     >
       <div className="space-y-4 text-xs">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300">
+          Enter the physical quantity counted on your showroom shelves under <span className="font-semibold text-slate-900 dark:text-slate-100">Counted Qty</span>. <span className="font-semibold text-slate-900 dark:text-slate-100">Variance</span> shows the difference from <span className="font-semibold text-slate-900 dark:text-slate-100">System Qty</span> and will automatically adjust your stock when you click <span className="font-semibold text-indigo-600 dark:text-indigo-400">Complete &amp; Post Variances</span>.
+        </div>
         <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="w-full text-left">
             <thead className="sticky top-0 bg-slate-50 text-[11px] uppercase text-slate-500 dark:bg-slate-800">

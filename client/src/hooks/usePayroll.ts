@@ -168,3 +168,13 @@ export function useEmployeePayLedger(employeeId: string) {
     enabled: Boolean(employeeId),
   })
 }
+
+export function useEmailPayslip() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await PayrollEndpoints.emailPayslip(id)
+      if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode)
+      return res.data
+    },
+  })
+}

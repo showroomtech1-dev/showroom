@@ -1,4 +1,16 @@
-const CACHE_NAME = "showroompro-pwa-v1";
+const CACHE_NAME = "showroompro-pwa-v2";
+const API_CACHE = "showroompro-api-v1";
+// GET endpoints cached for offline selling (paths match whatever host the API runs on).
+const OFFLINE_API = [
+  /^\/api\/v1\/auth\/me$/,
+  /^\/api\/v1\/settings\/?$/,
+  /^\/api\/v1\/branches\/?$/,
+  /^\/api\/v1\/inventory\/levels$/,
+  /^\/api\/v1\/products\/pos-search$/,
+  /^\/api\/v1\/products\/barcode\/[^/]+$/,
+  /^\/api\/v1\/customers\/?$/,
+  /^\/api\/v1\/accounts\/options$/,
+];
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -35,6 +47,10 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  // Signing out wipes cached business data so the next person on this device doesn't see it.
+  if (event.data && event.data.type === "CLEAR_API_CACHE") {
+    event.waitUntil(caches.delete(API_CACHE));
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -43,7 +59,23 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Never cache API calls or external OAuth scripts
+  // Read-only data the POS needs to keep working offline: network first, last copy when offline.
+  if (OFFLINE_API.some((re) => re.test(url.pathname))) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(API_CACHE).then((cache) => cache.put(request.url, clone));
+          }
+          return response;
+        })
+        .catch(async () => (await caches.match(request.url, { cacheName: API_CACHE })) || Response.error())
+    );
+    return;
+  }
+
+  // Never cache other API calls or external OAuth scripts
   if (url.pathname.startsWith("/api/") || url.origin !== self.location.origin) {
     return;
   }

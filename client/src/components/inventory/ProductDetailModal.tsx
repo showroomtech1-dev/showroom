@@ -118,20 +118,37 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Samsung" />
           <Input label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="piece, box, set" />
-          <Input label="SKU (Optional)" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Auto-generated" disabled={Boolean(product)} />
+          <Input
+            label="SKU (Optional)"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            placeholder="Auto-generated"
+            disabled={Boolean(product)}
+            tooltip="Unique product code or barcode number used for scanning at POS. Leave blank to auto-generate."
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Input label="Cost Price (₦)" type="number" placeholder="0.00" value={costNaira} onChange={(e) => setCostNaira(e.target.value)} />
           <Input label="Selling Price (₦) *" type="number" placeholder="0.00" value={priceNaira} onChange={(e) => setPriceNaira(e.target.value)} data-cy="product-price" />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Reorder Level" type="number" min={0} value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} />
+          <Input
+            label="Reorder Level"
+            type="number"
+            min={0}
+            value={reorderLevel}
+            onChange={(e) => setReorderLevel(e.target.value)}
+            tooltip="Low-stock alert threshold. When your stock drops to or below this number, the item is marked 'Low Stock' to remind you to restock."
+            hint="Low-stock warning threshold"
+          />
           <Input
             label={product ? "Opening / Current Stock" : "Opening Stock"}
             type="number"
             min={0}
             value={openingStock}
             onChange={(e) => setOpeningStock(e.target.value)}
+            tooltip="Physical quantity currently on the shelf in your showroom."
+            hint="Units currently on shelf"
             data-cy="product-opening-stock"
           />
         </div>

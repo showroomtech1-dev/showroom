@@ -186,10 +186,15 @@ export class CustomerRepository {
     );
   }
 
-  async receivableTotals(organizationId: string, today: string): Promise<{ outstanding: number; overdue: number; customers: number; credit: number }> {
+  /** Shape matches the web app's ReceivablesSummary (dashboard, customers and finance screens). */
+  async receivableTotals(
+    organizationId: string,
+    today: string
+  ): Promise<{ totalOutstanding: number; overdueAmount: number; overdueCount: number; debtorCount: number; creditHeld: number }> {
     const rows: Array<Record<string, number>> = await db().query(
       `SELECT COALESCE(SUM(s.balance_due), 0) AS outstanding,
               COALESCE(SUM(s.balance_due) FILTER (WHERE s.due_date < $2), 0) AS overdue,
+              COUNT(DISTINCT s.customer_id) FILTER (WHERE s.due_date < $2) AS "overdueCustomers",
               COUNT(DISTINCT s.customer_id) AS customers,
               (SELECT COALESCE(SUM(p.amount - p.allocated_amount), 0) FROM customer_payments p
                 WHERE p.organization_id = $1 AND p.deleted_at IS NULL) AS credit
@@ -197,7 +202,14 @@ export class CustomerRepository {
        WHERE s.organization_id = $1 AND s.deleted_at IS NULL AND s.status = 'completed' AND s.balance_due > 0`,
       [organizationId, today]
     );
-    return { outstanding: num(rows[0]?.outstanding), overdue: num(rows[0]?.overdue), customers: num(rows[0]?.customers), credit: num(rows[0]?.credit) };
+    const r = rows[0] ?? {};
+    return {
+      totalOutstanding: num(r.outstanding),
+      overdueAmount: num(r.overdue),
+      overdueCount: num(r.overdueCustomers),
+      debtorCount: num(r.customers),
+      creditHeld: num(r.credit),
+    };
   }
 
   async purchaseHistory(customerId: string, page: number, limit: number) {

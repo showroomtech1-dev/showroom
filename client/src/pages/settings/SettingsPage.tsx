@@ -15,9 +15,10 @@ import { fromBps, fromKobo, toBps, toKobo } from "@/lib/money"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { EmailSettingsTab } from "@/components/settings/EmailSettingsTab"
 import { AuditAndTrashTab, RolesTab, SecurityPasswordTab, UsersTab } from "@/components/settings/UsersAndRolesTabs"
 
-type SettingsTab = "general" | "branches" | "users" | "roles" | "security" | "audit"
+type SettingsTab = "general" | "email" | "branches" | "users" | "roles" | "security" | "audit"
 
 export default function SettingsPage() {
   const { can, refreshSession } = useAuth()
@@ -107,6 +108,7 @@ export default function SettingsPage() {
         {(
           [
             ["general", "Business & Tax"],
+            ["email", "Email & Alerts"],
             ["branches", "Showroom Branches"],
             ["users", "User Accounts"],
             ["roles", "Roles & Permissions"],
@@ -251,6 +253,7 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {tab === "email" && <EmailSettingsTab />}
       {tab === "users" && <UsersTab />}
       {tab === "roles" && <RolesTab />}
       {tab === "security" && <SecurityPasswordTab />}

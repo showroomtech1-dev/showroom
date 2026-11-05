@@ -344,11 +344,27 @@ export function RolesTab() {
   )
 }
 
+// Record types the server can restore (GET /system/trash/types). Money records such as expenses and
+// payments are not restorable: deleting them posts a reversal instead.
+const TRASH_TYPES = [
+  { value: "product", label: "Products" },
+  { value: "customer", label: "Customers" },
+  { value: "supplier", label: "Suppliers & vendors" },
+  { value: "employee", label: "Employees" },
+  { value: "product_category", label: "Product categories" },
+  { value: "expense_category", label: "Expense categories" },
+  { value: "recurring_expense", label: "Recurring expenses" },
+  { value: "quotation", label: "Quotations" },
+  { value: "account", label: "Accounts" },
+  { value: "branch", label: "Branches" },
+  { value: "user", label: "Users" },
+]
+
 export function AuditAndTrashTab() {
   const { can } = useAuth()
-  const [trashType, setTrashType] = useState("products")
+  const [trashType, setTrashType] = useState<string>(TRASH_TYPES[0].value)
   const auditQuery = useAuditLogs({ limit: 30 }, can("audit.view"))
-  const trashQuery = useTrash(trashType, can("settings.manage"))
+  const trashQuery = useTrash(trashType, can("trash.manage"))
   const restoreTrash = useRestoreTrash()
 
   return (
@@ -380,25 +396,27 @@ export function AuditAndTrashTab() {
           <Select
             value={trashType}
             onChange={(e) => setTrashType(e.target.value)}
-            options={[
-              { value: "products", label: "Products" },
-              { value: "customers", label: "Customers" },
-              { value: "suppliers", label: "Suppliers" },
-              { value: "expenses", label: "Expenses" },
-              { value: "employees", label: "Employees" },
-            ]}
+            options={TRASH_TYPES}
           />
         </div>
         <div className="max-h-72 divide-y divide-slate-200 overflow-y-auto text-xs dark:divide-slate-800">
+          {!trashQuery.isLoading && (trashQuery.data ?? []).length === 0 && (
+            <p className="py-6 text-center text-slate-400">Nothing deleted here.</p>
+          )}
           {(trashQuery.data ?? []).map((item) => (
             <div key={item.id} className="flex items-center justify-between py-2">
               <span>{item.label}</span>
               <Button
                 variant="outline"
                 size="sm"
+                disabled={restoreTrash.isPending}
                 onClick={async () => {
-                  await restoreTrash.mutateAsync({ type: trashType, id: item.id })
-                  toast.success("Record restored")
+                  try {
+                    await restoreTrash.mutateAsync({ type: trashType, id: item.id })
+                    toast.success(`${item.label} restored`)
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Could not restore this record")
+                  }
                 }}
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Restore

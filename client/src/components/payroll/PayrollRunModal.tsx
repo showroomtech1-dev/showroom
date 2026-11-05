@@ -17,6 +17,7 @@ import { formatMoney, fromKobo, toKobo } from "@/lib/money"
 import { formatDate, startOfMonthIso, todayIso } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { EmailPayslipButton } from "@/components/payroll/EmailPayslipButton"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { StatusBadge } from "@/components/shared/StatusBadge"
@@ -196,13 +197,16 @@ export function PayrollRunDetailModal({ runId, onClose }: PayrollRunDetailModalP
                     <td className="px-3 py-2 text-right font-bold text-emerald-600">{formatMoney(item.netPay)}</td>
                     <td className="px-3 py-2 text-right">
                       {item.payslipId && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => PayrollEndpoints.openPayslipPdf(item.payslipId!)}
-                        >
-                          <FileText className="h-3.5 w-3.5" /> PDF
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => PayrollEndpoints.openPayslipPdf(item.payslipId!)}
+                          >
+                            <FileText className="h-3.5 w-3.5" /> PDF
+                          </Button>
+                          <EmailPayslipButton payslipId={item.payslipId} variant="ghost" />
+                        </div>
                       )}
                     </td>
                   </tr>

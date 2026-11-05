@@ -53,7 +53,8 @@ export interface DashboardSummary {
 export interface DashboardCharts {
   salesTrend: Array<{ date: string; total: number; count: number; grossProfit?: number }>
   expensesByCategory: Array<{ category: string; total: number }>
-  profitByMonth: Array<{ month: string; revenue: number; cost: number; expenses: number; netProfit: number }>
+  /** Empty when the user can't see finance figures. */
+  profitByMonth: Array<{ month: string; revenue: number; cogs: number; grossProfit: number; expenses: number; payroll: number; netProfit: number }>
 }
 
 export interface ExportTable {

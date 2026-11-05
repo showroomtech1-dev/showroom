@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Download, MessageCircle } from "lucide-react"
+import { Download, Mail, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -7,6 +7,7 @@ import {
   useCustomerPurchases,
   useCustomerReminder,
   useCustomerStatement,
+  useEmailCustomerReminder,
   useSaveCustomer,
 } from "@/hooks/useCustomers"
 import { useAccounts } from "@/hooks/useFinance"
@@ -218,9 +219,19 @@ export function CustomerStatementModal({ customer, onClose }: CustomerStatementM
   const statementQuery = useCustomerStatement(customer?.id ?? "", { from, to })
   const purchasesQuery = useCustomerPurchases(customer?.id ?? "", { limit: 10 })
   const reminderMutation = useCustomerReminder()
+  const emailReminder = useEmailCustomerReminder()
 
   if (!customer) return null
   const stmt = statementQuery.data
+
+  const handleEmailReminder = async () => {
+    try {
+      const sent = await emailReminder.mutateAsync(customer.id)
+      toast.success(`Reminder emailed to ${sent.sentTo}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not email the reminder")
+    }
+  }
 
   const handleReminder = async () => {
     try {
@@ -260,10 +271,18 @@ export function CustomerStatementModal({ customer, onClose }: CustomerStatementM
             </Button>
           </div>
           {customer.balance > 0 && (
-            <Button variant="outline" size="sm" onClick={handleReminder} disabled={reminderMutation.isPending}>
-              <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
-              WhatsApp Debt Reminder
-            </Button>
+            <div className="flex gap-1.5">
+              <Button variant="outline" size="sm" onClick={handleReminder} disabled={reminderMutation.isPending}>
+                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                WhatsApp Reminder
+              </Button>
+              {customer.email && (
+                <Button variant="outline" size="sm" onClick={handleEmailReminder} disabled={emailReminder.isPending}>
+                  <Mail className="h-3.5 w-3.5" />
+                  {emailReminder.isPending ? "Sending…" : "Email Reminder"}
+                </Button>
+              )}
+            </div>
           )}
         </div>
 

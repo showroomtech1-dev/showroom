@@ -266,3 +266,13 @@ export function useRestoreTrash() {
     onSuccess: () => qc.invalidateQueries({ queryKey: [TRASH_KEY] }),
   })
 }
+
+export function useSendTestEmail() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await OrganizationEndpoints.sendTestEmail()
+      if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode)
+      return res.data
+    },
+  })
+}

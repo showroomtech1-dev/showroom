@@ -41,6 +41,10 @@ export const PayrollEndpoints = {
   openPayslipPdf: (id: string) =>
     openPdfInNewTab(`/api/v1/payroll/payslips/${id}/pdf`),
 
+  /** Emails the payslip (PDF attached) to the employee. */
+  emailPayslip: (id: string) =>
+    wrapCall<{ sentTo: string } | null>("POST", `/api/v1/payroll/payslips/${id}/email`),
+
   employeeLedger: (employeeId: string) =>
     wrapCall<EmployeePayLedger>("GET", `/api/v1/payroll/employees/${employeeId}/ledger`),
 }

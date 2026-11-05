@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { Barcode, Minus, Plus, ShoppingCart, Trash2, UserPlus, X } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+import { Barcode, Camera, Minus, Plus, ShoppingCart, Trash2, UserPlus, X } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePosSearch } from "@/hooks/useProducts"
@@ -10,11 +10,17 @@ import { useOrganization } from "@/hooks/useOrganization"
 import { useCreateSale } from "@/hooks/useSales"
 import { useDebounce } from "@/hooks/useDebounce"
 import { formatMoney, fromKobo, toKobo } from "@/lib/money"
+import { isConnectivityFailure, offlineSales } from "@/lib/offlineSales"
+import { priceCart } from "@/lib/pricing"
+import { ApiError } from "@/transport/http"
 import { newClientRef } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { BarcodeScannerDialog } from "@/components/sales/BarcodeScannerDialog"
 import { PosReceiptDialog } from "@/components/sales/PosReceiptDialog"
+import { RefusedOfflineSales } from "@/components/sales/RefusedOfflineSales"
+import { ProductEndpoints } from "@/endpoints/product.endpoints"
 import type { PosItem } from "@/types/inventory.types"
 import type { SaleCreatedResult } from "@/types/sale.types"
 
@@ -36,7 +42,7 @@ interface PaymentLine {
 }
 
 export default function PosPage() {
-  const { can, activeBranchId } = useAuth()
+  const { can, activeBranchId, user } = useAuth()
   const canOverridePrice = can("sale.priceoverride")
   const [query, setQuery] = useState("")
   const debouncedQuery = useDebounce(query, 200)
@@ -54,6 +60,7 @@ export default function PosPage() {
     { method: "cash", accountId: "", amountNaira: "", reference: "" },
   ])
   const [receiptResult, setReceiptResult] = useState<SaleCreatedResult | null>(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const posSearch = usePosSearch(debouncedQuery, activeBranchId || undefined)
   const defaultLevels = useStockLevels({
@@ -108,15 +115,39 @@ export default function PosPage() {
     })
   }
 
-  const subtotalKobo = cart.reduce((sum, c) => sum + toKobo(c.unitPriceNaira) * c.quantity, 0)
-  const discountKobo =
-    discountType === "percent"
-      ? Math.round((subtotalKobo * Math.min(100, Math.max(0, Number(discountInput) || 0))) / 100)
-      : toKobo(discountInput)
-  const taxableKobo = Math.max(0, subtotalKobo - discountKobo)
-  const taxRateBps = orgQuery.data?.taxRateBps ?? 0
-  const taxKobo = Math.round((taxableKobo * taxRateBps) / 10000)
-  const totalKobo = taxableKobo + taxKobo
+  // Same maths as the server: VAT only when enabled, and either included in prices or added on top.
+  const discountValue = discountType === "percent" ? Math.max(0, Number(discountInput) || 0) : toKobo(discountInput)
+  const totals = priceCart(
+    cart.reduce((sum, c) => sum + toKobo(c.unitPriceNaira) * c.quantity, 0),
+    discountInput ? { type: discountType, value: discountValue } : null,
+    orgQuery.data
+  )
+  /** Adds the product whose barcode / SKU is exactly `code`; falls back to `fallback` (a single search hit). */
+  const addByCode = async (code: string, fallback: PosItem | null) => {
+    const res = await ProductEndpoints.byBarcode(code, activeBranchId || undefined)
+    if (res.success && res.data) {
+      addItemToCart(res.data)
+      setQuery("")
+      toast.success(`Added ${res.data.label || res.data.productName}`)
+    } else if (fallback) {
+      addItemToCart(fallback)
+      setQuery("")
+    } else {
+      setQuery(code)
+      toast.error(`No product with barcode or SKU "${code}"`)
+    }
+  }
+
+  const closeScanner = useCallback(() => setScannerOpen(false), [])
+  const handleScanned = useCallback(
+    (code: string) => void addByCode(code, null),
+    [activeBranchId]
+  )
+
+  const subtotalKobo = totals.subtotal
+  const discountKobo = totals.discount
+  const taxKobo = totals.taxAmount
+  const totalKobo = totals.total
   const paidKobo = payments.reduce((s, p) => s + toKobo(p.amountNaira), 0)
   const balanceKobo = Math.max(0, totalKobo - paidKobo)
 
@@ -147,34 +178,47 @@ export default function PosPage() {
       return toast.error("Credit sales require selecting or adding a customer")
     }
 
-    try {
-      const res = await createSale.mutateAsync({
-        clientRef: newClientRef(),
-        branchId: activeBranchId || undefined,
-        customerId: customerId || undefined,
-        newCustomer:
-          walkInMode && walkInName.trim()
-            ? { name: walkInName.trim(), phone: walkInPhone.trim() || undefined }
-            : undefined,
-        items: cart.map((c) => ({
-          variantId: c.variantId,
-          quantity: c.quantity,
-          unitPrice: canOverridePrice ? toKobo(c.unitPriceNaira) : undefined,
-        })),
-        discountType: discountInput ? discountType : undefined,
-        discountValue: discountInput
-          ? discountType === "percent"
-            ? Number(discountInput)
-            : toKobo(discountInput)
+    const payload: Record<string, unknown> = {
+      clientRef: newClientRef(),
+      branchId: activeBranchId || undefined,
+      customerId: customerId || undefined,
+      customer:
+        !customerId && walkInMode && walkInName.trim()
+          ? { name: walkInName.trim(), phone: walkInPhone.trim() || undefined }
           : undefined,
-        payments: validPayments,
-        dueDate: balanceKobo > 0 && dueDate ? dueDate : undefined,
-        notes: notes.trim() || undefined,
+      items: cart.map((c) => ({
+        variantId: c.variantId,
+        quantity: c.quantity,
+        unitPrice: canOverridePrice ? toKobo(c.unitPriceNaira) : undefined,
+      })),
+      discount: discountInput && discountValue > 0 ? { type: discountType, value: discountValue } : undefined,
+      payments: validPayments,
+      dueDate: balanceKobo > 0 && dueDate ? dueDate : undefined,
+      notes: notes.trim() || undefined,
+    }
+
+    // No connection: keep the sale on this device (with the time it happened) and sync it later.
+    const saveOffline = () => {
+      const customerName = customersQuery.data?.data.find((c) => c.id === customerId)?.name ?? (walkInMode ? walkInName.trim() : null)
+      offlineSales.add({
+        userId: user?.id ?? "",
+        clientRef: payload.clientRef as string,
+        payload: { ...payload, soldAt: new Date().toISOString() },
+        summary: { items: cart.reduce((s, c) => s + c.quantity, 0), total: totalKobo, customer: customerName || null },
       })
+      toast.success("No connection — sale saved on this device. It will sync automatically.")
+      resetTerminal()
+      setMobileCartOpen(false)
+    }
+    if (!navigator.onLine) return saveOffline()
+
+    try {
+      const res = await createSale.mutateAsync(payload)
       setReceiptResult(res)
       resetTerminal()
       setMobileCartOpen(false)
     } catch (err) {
+      if (err instanceof ApiError && isConnectivityFailure(err.statusCode)) return saveOffline()
       toast.error(err instanceof Error ? err.message : "Failed to complete sale")
     }
   }
@@ -190,21 +234,31 @@ export default function PosPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && catalogItems.length === 1) {
-                addItemToCart(catalogItems[0])
-                setQuery("")
-              }
+              // Handheld scanners type the code and press Enter: try an exact barcode / SKU match first.
+              if (e.key === "Enter" && query.trim()) void addByCode(query.trim(), catalogItems.length === 1 ? catalogItems[0] : null)
             }}
             placeholder="Scan barcode or search product name, SKU, model..."
             className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-slate-100"
             data-cy="pos-search-input"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600" aria-label="Clear search">
               <X className="h-4 w-4" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            aria-label="Scan barcode with camera"
+            data-cy="pos-camera-scan"
+          >
+            <Camera className="h-4 w-4" />
+            <span className="hidden sm:inline">Scan</span>
+          </button>
         </div>
+        <BarcodeScannerDialog open={scannerOpen} onClose={closeScanner} onDetected={handleScanned} />
+        <RefusedOfflineSales />
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
           {catalogItems.map((item) => (
@@ -465,7 +519,7 @@ export default function PosPage() {
               )}
               {taxKobo > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-slate-500">VAT</span>
+                  <span className="text-slate-500">{orgQuery.data?.taxName ?? "VAT"}{totals.taxInclusive ? " (included)" : ""}</span>
                   <span>{formatMoney(taxKobo)}</span>
                 </div>
               )}

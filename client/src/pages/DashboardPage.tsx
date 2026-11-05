@@ -14,6 +14,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useDashboardCharts, useDashboardSummary } from "@/hooks/useFinance"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
+import { ExpenseCategoryChart } from "@/components/dashboard/ExpenseCategoryChart"
+import { ProfitTrendChart } from "@/components/dashboard/ProfitTrendChart"
 import { PageLoader } from "@/components/shared/PageLoader"
 import { StatCard } from "@/components/shared/StatCard"
 import { StatusBadge } from "@/components/shared/StatusBadge"
@@ -235,6 +237,34 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profit over time & expenses by category (each shown only when the user may see it) */}
+      {charts && (charts.profitByMonth.length > 0 || can("expense.read")) && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {charts.profitByMonth.length > 0 && (
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle>Profit Over Time</CardTitle>
+                <p className="text-xs text-slate-500">Net profit per month after cost of goods, expenses and payroll</p>
+              </CardHeader>
+              <CardContent>
+                <ProfitTrendChart data={charts.profitByMonth} currencySymbol={currencySymbol} />
+              </CardContent>
+            </Card>
+          )}
+          {can("expense.read") && (
+            <Card className={charts.profitByMonth.length > 0 ? "lg:col-span-2" : "lg:col-span-5"}>
+              <CardHeader>
+                <CardTitle>Expenses by Category</CardTitle>
+                <p className="text-xs text-slate-500">This month so far</p>
+              </CardHeader>
+              <CardContent>
+                <ExpenseCategoryChart data={charts.expensesByCategory} currencySymbol={currencySymbol} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Bottom 3 Panels: Top Products, Stock Alerts, Upcoming Payments */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

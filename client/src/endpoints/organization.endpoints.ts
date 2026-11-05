@@ -88,6 +88,10 @@ export const OrganizationEndpoints = {
   markAllNotificationsRead: () =>
     wrapCall<null>("POST", "/api/v1/notifications/read-all"),
 
+  /** Sends a test email to the signed-in owner (needs settings.manage). */
+  sendTestEmail: () =>
+    wrapCall<{ sentTo: string; provider: string }>("POST", "/api/v1/notifications/test-email"),
+
   scanNotifications: () =>
     wrapCall<unknown>("POST", "/api/v1/notifications/scan"),
 

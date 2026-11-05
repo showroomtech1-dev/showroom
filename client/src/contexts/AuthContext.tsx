@@ -140,6 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null)
     setPreviewRole(null)
     qc.clear()
+    // Wipe business data the service worker cached for offline use.
+    navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_API_CACHE" })
     if (refresh) {
       await AuthEndpoints.logout(refresh).catch(() => null)
     }

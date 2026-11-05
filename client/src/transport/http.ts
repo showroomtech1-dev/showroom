@@ -210,6 +210,40 @@ export async function openPdfInNewTab(path: string, params?: Record<string, unkn
   window.open(url, "_blank", "noopener,noreferrer")
 }
 
+/**
+ * Opens the browser's print dialog for a PDF. Desktop browsers print from a hidden frame; mobile
+ * browsers can't, so there the PDF opens in a new tab where the share / print menu is available.
+ */
+export async function printPdf(path: string, params?: Record<string, unknown>): Promise<void> {
+  const res = await client.get(path, { params: cleanParams(params), responseType: "blob", timeout: 60_000 })
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }))
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.open(url, "_blank", "noopener,noreferrer")
+    return
+  }
+  const frame = document.createElement("iframe")
+  frame.style.position = "fixed"
+  frame.style.width = "0"
+  frame.style.height = "0"
+  frame.style.border = "0"
+  frame.src = url
+  frame.onload = () => {
+    try {
+      frame.contentWindow?.focus()
+      frame.contentWindow?.print()
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer")
+    }
+    // Leave time for the print dialog to take the document before cleaning up.
+    setTimeout(() => {
+      frame.remove()
+      window.URL.revokeObjectURL(url)
+    }, 60_000)
+  }
+  document.body.appendChild(frame)
+}
+
 export function getPublicApiUrl(path: string): string {
   return `${BASE_URL}${path}`
 }

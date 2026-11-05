@@ -53,6 +53,10 @@ export class StockTakeService {
   async start(actor: Actor, data: StartStockTakeInput): Promise<StockTakeDTO> {
     assertPermission(actor, "stocktake.manage");
     const branchId = await this.branches.resolveForWrite(actor, data.branchId);
+    const existing = await this.repo.findActiveByBranch(actor.organizationId, branchId);
+    if (existing) {
+      return this.present(actor, existing);
+    }
     const id = await inTransaction(async (tx) => {
       const code = await this.codes.next(actor.organizationId, "stockTake", tx);
       const takeId = await this.repo.create({ organizationId: actor.organizationId, branchId, code, notes: data.notes ?? null, createdById: actor.id }, tx);

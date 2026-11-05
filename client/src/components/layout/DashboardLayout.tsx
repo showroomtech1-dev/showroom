@@ -18,6 +18,7 @@ import { useBranches } from "@/hooks/useOrganization"
 import { useClockInOut, useTodayAttendance } from "@/hooks/useEmployees"
 import { AppSidebar } from "./AppSidebar"
 import { NotificationBell } from "./NotificationBell"
+import { OfflineSalesBanner } from "./OfflineSalesBanner"
 import { PreviewBanner } from "./PreviewBanner"
 import { PwaInstallButton } from "./PwaInstallButton"
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,7 @@ export function DashboardLayout() {
 
         <div className="flex flex-1 flex-col min-w-0 pb-20 lg:pb-6">
           <PreviewBanner />
+          <OfflineSalesBanner />
 
           {/* Sticky Top Bar */}
           <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 sm:px-6 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/90">

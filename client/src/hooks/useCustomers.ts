@@ -152,3 +152,13 @@ export function useCustomerReminder() {
     },
   })
 }
+
+export function useEmailCustomerReminder() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await CustomerEndpoints.emailReminder(id)
+      if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode)
+      return res.data
+    },
+  })
+}

@@ -1,11 +1,11 @@
 import { useState } from "react"
-import { Ban, ExternalLink, FileText, MessageCircle, Printer, RotateCcw } from "lucide-react"
+import { Ban, ExternalLink, FileText, Mail, MessageCircle, Printer, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCreateSaleReturn, useSale, useShareSale, useVoidSale } from "@/hooks/useSales"
+import { useCreateSaleReturn, useEmailReceipt, useSale, useShareSale, useVoidSale } from "@/hooks/useSales"
 import { useAccounts } from "@/hooks/useFinance"
 import { SaleEndpoints } from "@/endpoints/sale.endpoints"
-import { formatMoney, toKobo } from "@/lib/money"
+import { formatMoney } from "@/lib/money"
 import { formatDateTime } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -24,12 +24,12 @@ export function SaleDetailModal({ saleId, onClose }: SaleDetailModalProps) {
   const voidSale = useVoidSale()
   const createReturn = useCreateSaleReturn()
   const shareSale = useShareSale()
+  const emailReceipt = useEmailReceipt()
   const accountsQuery = useAccounts()
 
   const [mode, setMode] = useState<"view" | "void" | "return">("view")
   const [voidReason, setVoidReason] = useState("")
   const [returnReason, setReturnReason] = useState("")
-  const [refundAmountNaira, setRefundAmountNaira] = useState("")
   const [refundMethod, setRefundMethod] = useState<"cash" | "transfer" | "pos" | "cheque">("cash")
   const [refundAccountId, setRefundAccountId] = useState("")
   const [returnQtys, setReturnQtys] = useState<Record<string, number>>({})
@@ -60,16 +60,24 @@ export function SaleDetailModal({ saleId, onClose }: SaleDetailModalProps) {
         saleId: sale.id,
         reason: returnReason.trim() || undefined,
         items,
-        refundAmount: toKobo(refundAmountNaira),
-        refundMethod: toKobo(refundAmountNaira) > 0 ? refundMethod : undefined,
-        refundAccountId: toKobo(refundAmountNaira) > 0 && refundAccountId ? refundAccountId : undefined,
+        refundMethod,
+        accountId: refundAccountId || undefined,
       })
       toast.success("Return processed")
       setMode("view")
       setReturnQtys({})
-      setRefundAmountNaira("")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to process return")
+    }
+  }
+
+  const handleEmail = async () => {
+    if (!sale) return
+    try {
+      const sent = await emailReceipt.mutateAsync(sale.id)
+      toast.success(`Receipt emailed to ${sent.sentTo}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not email the receipt")
     }
   }
 
@@ -204,14 +212,11 @@ export function SaleDetailModal({ saleId, onClose }: SaleDetailModalProps) {
 
           {mode === "return" && (
             <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Input
-                  label="Cash Refund (₦)"
-                  type="number"
-                  placeholder="0"
-                  value={refundAmountNaira}
-                  onChange={(e) => setRefundAmountNaira(e.target.value)}
-                />
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                The value of the returned items first clears anything {sale.customerName ?? "the customer"} still owes on this sale
+                {sale.balanceDue > 0 ? ` (${formatMoney(sale.balanceDue)})` : ""}. Anything above that is refunded using the method below.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Select
                   label="Refund Method"
                   value={refundMethod}
@@ -250,9 +255,13 @@ export function SaleDetailModal({ saleId, onClose }: SaleDetailModalProps) {
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
             <div className="flex flex-wrap gap-1.5">
-              <Button variant="outline" size="sm" onClick={() => SaleEndpoints.openReceiptPdf(sale.id, "thermal")}>
+              <Button variant="outline" size="sm" onClick={() => SaleEndpoints.printReceipt(sale.id, "thermal").catch(() => toast.error("Could not open the print dialog"))}>
                 <Printer className="h-3.5 w-3.5" />
-                Thermal
+                Print
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => SaleEndpoints.openReceiptPdf(sale.id, "thermal")}>
+                <FileText className="h-3.5 w-3.5" />
+                Thermal PDF
               </Button>
               <Button variant="outline" size="sm" onClick={() => SaleEndpoints.openReceiptPdf(sale.id, "a4")}>
                 <FileText className="h-3.5 w-3.5" />
@@ -266,6 +275,12 @@ export function SaleDetailModal({ saleId, onClose }: SaleDetailModalProps) {
                 <ExternalLink className="h-3.5 w-3.5" />
                 Public Link
               </Button>
+              {sale.customerId && (
+                <Button variant="outline" size="sm" onClick={handleEmail} disabled={emailReceipt.isPending}>
+                  <Mail className="h-3.5 w-3.5" />
+                  {emailReceipt.isPending ? "Sending…" : "Email"}
+                </Button>
+              )}
             </div>
             {sale.status === "completed" && mode === "view" && (
               <div className="flex gap-1.5">

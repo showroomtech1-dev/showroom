@@ -15,6 +15,8 @@ export interface SessionUser {
   roleKey: string
   roleName: string
   mustChangePassword: boolean
+  /** Listed in the server's PLATFORM_ADMIN_EMAILS — can open the Platform Admin view. */
+  isPlatformAdmin?: boolean
 }
 
 export interface BusinessProfile {

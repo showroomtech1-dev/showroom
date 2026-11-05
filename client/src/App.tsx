@@ -22,17 +22,21 @@ const FinancePage = lazy(() => import("@/pages/finance/FinancePage"))
 const ReportsPage = lazy(() => import("@/pages/reports/ReportsPage"))
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"))
 const ProfilePage = lazy(() => import("@/pages/auth/ProfilePage"))
+const PlatformAdminPage = lazy(() => import("@/pages/platform/PlatformAdminPage"))
 
 function ProtectedRoute({
   children,
   anyOf,
+  platformOnly,
 }: {
   children: React.ReactNode
   anyOf?: readonly string[]
+  platformOnly?: boolean
 }) {
-  const { isAuthenticated, isLoading, canAny } = useAuth()
+  const { isAuthenticated, isLoading, canAny, actualUser } = useAuth()
   if (isLoading) return <PageLoader />
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (platformOnly && !actualUser?.isPlatformAdmin) return <Navigate to="/" replace />
   if (anyOf && !canAny(anyOf)) return <Navigate to="/" replace />
   return <>{children}</>
 }
@@ -156,6 +160,14 @@ export default function App() {
             element={
               <ProtectedRoute anyOf={SETTINGS_ADMIN_PERMISSIONS}>
                 <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="platform"
+            element={
+              <ProtectedRoute platformOnly>
+                <PlatformAdminPage />
               </ProtectedRoute>
             }
           />

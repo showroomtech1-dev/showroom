@@ -1,11 +1,12 @@
 // Route guards + service checks. Every mounted route must carry exactly one guard from this file
 // (enforced at boot by routeAudit). Services re-check with can()/assertPermission().
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { env } from "../../config/env";
 import { WILDCARD, type PermissionCode } from "../../modules/access/catalog/permissions.catalog";
 import { AppError } from "../errors/AppError";
 import type { Actor } from "../types/actor";
 
-export type GuardKind = "permission" | "any" | "authenticated" | "public";
+export type GuardKind = "permission" | "any" | "authenticated" | "public" | "platform";
 
 export interface GuardInfo {
   kind: GuardKind;
@@ -54,6 +55,17 @@ export function requireAny(...codes: PermissionCode[]): GuardHandler {
 /** Signed-in self-service (own profile, own notifications). */
 export function requireAuthenticatedOnly(): GuardHandler {
   return guard({ kind: "authenticated", codes: [] }, (req) => Boolean(req.user));
+}
+
+/** Platform operators, listed in PLATFORM_ADMIN_EMAILS. Not a business permission — "*" does not grant it. */
+export function isPlatformAdmin(actor: Pick<Actor, "email"> | undefined | null): boolean {
+  if (!actor?.email) return false;
+  return env.platformAdminEmails.includes(actor.email.toLowerCase());
+}
+
+/** Cross-business routes for platform operators only. */
+export function requirePlatformAdmin(): GuardHandler {
+  return guard({ kind: "platform", codes: [] }, (req) => isPlatformAdmin(req.user));
 }
 
 /** Explicit opt-out for unauthenticated routes. */

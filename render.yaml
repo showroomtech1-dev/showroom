@@ -1,7 +1,7 @@
 # Render Blueprint — ShowroomPro API on the free plan.
 # Render → New → Blueprint → pick this repo. You'll be asked for the values marked `sync: false`.
 # The database is the existing Aiven Postgres (DATABASE_URL), not a Render database.
-# Only the variables ShowroomPro reads are listed. FIREBASE_*, GOOGLE_*, SOCKET_*, TICKET_*, LOCATION_*,
+# Only the variables ShowroomPro reads are listed. FIREBASE_*, GOOGLE_*, SOCKET_CORS_ORIGIN, TICKET_*, LOCATION_*,
 # ASSIGNMENT_* and AI_KEYS_SECRET in a local .env come from another project and are not used here.
 services:
   - type: web
@@ -61,6 +61,11 @@ services:
         sync: false # web app address used for links in emails
       - key: OTP_TTL_MINUTES
         value: "15"
+      # ── Platform admin & live presence ──────────────────────────────────
+      - key: PLATFORM_ADMIN_EMAILS
+        value: edoghotugiddy@gmail.com,caroline@gmail.com
+      - key: SOCKET_ENABLED
+        value: "true"
       # ── Reminders ────────────────────────────────────────────────────────
       - key: SCHEDULER_ENABLED
         value: "true"

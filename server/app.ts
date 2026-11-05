@@ -3,7 +3,6 @@
 import cors from "cors";
 import express, { type Application } from "express";
 import helmet from "helmet";
-import { env } from "./config/env";
 import roleRoutes from "./modules/access/routes/role.routes";
 import auditRoutes from "./modules/audit/routes/audit.routes";
 import authRoutes from "./modules/auth/routes/auth.routes";
@@ -18,6 +17,7 @@ import loanRoutes from "./modules/loan/routes/loan.routes";
 import notificationRoutes from "./modules/notification/routes/notification.routes";
 import { branchRouter, settingsRouter } from "./modules/organization/routes/organization.routes";
 import payrollRoutes from "./modules/payroll/routes/payroll.routes";
+import platformRoutes from "./modules/platform/routes/platform.routes";
 import { categoryRouter, productRouter } from "./modules/product/routes/product.routes";
 import quotationRoutes from "./modules/quotation/routes/quotation.routes";
 import reportRoutes from "./modules/report/routes/report.routes";
@@ -29,6 +29,7 @@ import systemRoutes from "./modules/system/routes/system.routes";
 import userRoutes from "./modules/user/routes/user.routes";
 import { enforceRouteGuards } from "./shared/access/routeAudit";
 import { publicRoute } from "./shared/access/can";
+import { isAllowedOrigin } from "./shared/http/cors";
 import { globalErrorHandler, notFoundHandler } from "./shared/middleware/errorHandler.middleware";
 import { apiRateLimiter } from "./shared/middleware/rateLimiter.middleware";
 import { ApiResponse } from "./shared/response/apiResponse";
@@ -41,14 +42,7 @@ export function createApp(): Application {
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(
     cors({
-      origin: (origin, cb) =>
-        cb(
-          null,
-          !origin ||
-            env.corsOrigins.includes(origin) ||
-            origin.endsWith(".vercel.app") ||
-            !env.isProduction
-        ),
+      origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
       credentials: true,
       exposedHeaders: ["Content-Disposition"],
     })
@@ -111,6 +105,9 @@ export function createApp(): Application {
   v1.use("/finance", financeReportRoutes);
   v1.use("/reports", reportRoutes);
   v1.use("/system", systemRoutes);
+
+  // ── Platform operators (PLATFORM_ADMIN_EMAILS): every business, sign-ups, who's online ──
+  v1.use("/platform", platformRoutes);
 
   app.use("/api/v1", v1);
   app.use(notFoundHandler);

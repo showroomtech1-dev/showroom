@@ -24,6 +24,8 @@ export interface User {
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt: Date | null;
+  /** Last API call or live connection (throttled). */
+  lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -47,6 +49,7 @@ export const UserEntity = new EntitySchema<User>({
     isActive: boolColumn("is_active", true),
     mustChangePassword: boolColumn("must_change_password", false),
     lastLoginAt: timestampColumn("last_login_at"),
+    lastSeenAt: timestampColumn("last_seen_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: deletedAt(),

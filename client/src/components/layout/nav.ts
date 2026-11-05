@@ -9,6 +9,7 @@ import {
   Package,
   Receipt,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Truck,
   UserCheck,
@@ -21,6 +22,8 @@ export interface NavItem {
   path: string
   icon: LucideIcon
   anyOf?: readonly string[]
+  /** Only for platform admins (PLATFORM_ADMIN_EMAILS on the server), whatever their business role. */
+  platformOnly?: boolean
   badge?: string
   mobilePrimary?: boolean
 }
@@ -149,6 +152,17 @@ export const NAV_SECTIONS: NavSection[] = [
         path: "/settings",
         icon: Settings,
         anyOf: SETTINGS_ADMIN_PERMISSIONS,
+      },
+    ],
+  },
+  {
+    title: "Platform",
+    items: [
+      {
+        label: "Platform Admin",
+        path: "/platform",
+        icon: ShieldCheck,
+        platformOnly: true,
       },
     ],
   },

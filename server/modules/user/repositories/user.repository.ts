@@ -89,7 +89,7 @@ export class UserRepository {
     );
   }
 
-  async create(data: Omit<User, "id" | "createdAt" | "updatedAt" | "deletedAt" | "lastLoginAt">, tx?: Tx): Promise<string> {
+  async create(data: Omit<User, "id" | "createdAt" | "updatedAt" | "deletedAt" | "lastLoginAt" | "lastSeenAt">, tx?: Tx): Promise<string> {
     const repo = db(tx).getRepository(UserEntity);
     const saved = await repo.save(repo.create(data));
     return saved.id;
@@ -100,7 +100,12 @@ export class UserRepository {
   }
 
   async touchLogin(id: string): Promise<void> {
-    await db().getRepository(UserEntity).update({ id }, { lastLoginAt: new Date() });
+    const now = new Date();
+    await db().getRepository(UserEntity).update({ id }, { lastLoginAt: now, lastSeenAt: now });
+  }
+
+  async touchSeen(id: string, at = new Date()): Promise<void> {
+    await db().query(`UPDATE users SET last_seen_at = $2 WHERE id = $1`, [id, at]);
   }
 
   async softDelete(organizationId: string, id: string, tx?: Tx): Promise<void> {

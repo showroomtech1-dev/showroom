@@ -3,6 +3,7 @@ import { env } from "../../../config/env";
 import { domainEvents } from "../../../shared/events/domainEvents";
 import { PasswordResetRepository } from "../repositories/passwordReset.repository";
 import { inTransaction } from "../../../infrastructure/database/transaction";
+import { isPlatformAdmin } from "../../../shared/access/can";
 import { PermissionCache } from "../../../shared/access/permissionCache";
 import { AppError } from "../../../shared/errors/AppError";
 import { FIREBASE_MANAGED_PASSWORD, FirebaseAuthService } from "../../../shared/firebase/firebaseAuth.service";
@@ -61,6 +62,7 @@ export class AuthService {
     this.audit
       .record({ ...actor, ip: client.ip ?? undefined }, actor.organizationId, { action: "login", entityType: "user", entityId: actor.id, summary: `${actor.name} signed in` })
       .catch((err) => console.error("[audit] login log failed", err));
+    domainEvents.emit("auth.signedIn", { organizationId: actor.organizationId, userId: actor.id, method: "password", ip: client.ip });
     return { ...(await this.session(actor)), tokens };
   }
 
@@ -102,6 +104,7 @@ export class AuthService {
       phone: data.phone,
       address: data.address,
     });
+    domainEvents.emit("business.registered", { organizationId: created.organizationId, ownerUserId: created.ownerUserId, method: "form" });
     const actor = await resolveActor(created.ownerUserId, created.organizationId);
     if (!actor) throw AppError.unauthorised("Account created, please sign in");
 
@@ -144,6 +147,7 @@ export class AuthService {
           summary: `${actor.name} signed in with Google`,
         })
         .catch((err) => console.error("[audit] google login log failed", err));
+      domainEvents.emit("auth.signedIn", { organizationId: actor.organizationId, userId: actor.id, method: "google", ip: client.ip });
       return { ...(await this.session(actor)), tokens };
     }
 
@@ -154,6 +158,7 @@ export class AuthService {
       ownerEmail: email,
       ownerPassword: generatedPassword,
     });
+    domainEvents.emit("business.registered", { organizationId: created.organizationId, ownerUserId: created.ownerUserId, method: "google" });
     const actor = await resolveActor(created.ownerUserId, created.organizationId);
     if (!actor) throw AppError.unauthorised("Unable to complete Google sign-up");
     const tokens = await this.issueTokens(actor.id, actor.organizationId, client);
@@ -249,6 +254,7 @@ export class AuthService {
         roleKey: user.roleKey,
         roleName: user.roleName,
         mustChangePassword: user.mustChangePassword,
+        isPlatformAdmin: isPlatformAdmin(user),
       },
       permissions: actor.permissions,
       business,

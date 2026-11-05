@@ -29,7 +29,8 @@ export function AppSidebar({
   onCloseMobile,
   onOpenMobile,
 }: AppSidebarProps) {
-  const { canAny, business } = useAuth()
+  const { canAny, business, actualUser } = useAuth()
+  const isPlatformAdmin = Boolean(actualUser?.isPlatformAdmin)
   const location = useLocation()
   const [collapsedSections, setCollapsedSections] = usePersistedState<Record<string, boolean>>(
     "sidebar_collapsed_sections",
@@ -45,7 +46,9 @@ export function AppSidebar({
 
   const visibleSections = NAV_SECTIONS.map((sec) => ({
     ...sec,
-    items: sec.items.filter((item) => !item.anyOf || canAny(item.anyOf)),
+    items: sec.items.filter((item) =>
+      item.platformOnly ? isPlatformAdmin : !item.anyOf || canAny(item.anyOf)
+    ),
   })).filter((sec) => sec.items.length > 0)
 
   const allSectionsCollapsed =

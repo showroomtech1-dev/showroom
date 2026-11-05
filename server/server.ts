@@ -4,6 +4,7 @@ import "reflect-metadata";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { AppDataSource } from "./infrastructure/database/dataSource";
+import { attachSocketServer, closeSocketServer } from "./infrastructure/realtime/socketServer";
 import { startScheduler, stopScheduler } from "./infrastructure/scheduler/scheduler";
 import { emailConfigured } from "./shared/utils/mailer";
 import { EmailNotifierService } from "./modules/notification/services/emailNotifier.service";
@@ -21,11 +22,17 @@ async function main(): Promise<void> {
   const server = app.listen(env.port, () => {
     console.log(`ShowroomPro API listening on http://localhost:${env.port} (${env.nodeEnv})`);
   });
+  if (env.socketEnabled) {
+    attachSocketServer(server);
+    console.log("[socket] live presence on");
+  }
+  if (env.platformAdminEmails.length === 0) console.log("[platform] PLATFORM_ADMIN_EMAILS not set — the platform admin view is closed");
   startScheduler();
 
   const shutdown = (signal: string) => {
     console.log(`${signal} received, shutting down…`);
     stopScheduler();
+    void closeSocketServer();
     server.close(() => {
       AppDataSource.destroy().finally(() => process.exit(0));
     });

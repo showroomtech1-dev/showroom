@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link, Outlet, useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import {
   Building2,
   Clock,
@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { usePersistedState } from "@/hooks/usePersistedState"
+import { connectRealtime, disconnectRealtime, reportPage } from "@/lib/socket"
 import { useBranches } from "@/hooks/useOrganization"
 import { useClockInOut, useTodayAttendance } from "@/hooks/useEmployees"
 import { AppSidebar } from "./AppSidebar"
@@ -25,9 +26,21 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 
 export function DashboardLayout() {
-  const { user, can, selectedBranchId, setSelectedBranchId, logout } = useAuth()
+  const { user, actualUser, can, selectedBranchId, setSelectedBranchId, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Live presence: connected while signed in, reconnects when a different user signs in.
+  useEffect(() => {
+    if (!actualUser?.id) return
+    connectRealtime()
+    return () => disconnectRealtime()
+  }, [actualUser?.id])
+
+  useEffect(() => {
+    reportPage(location.pathname)
+  }, [location.pathname])
   const [collapsed, setCollapsed] = usePersistedState("sidebar_collapsed", false)
   const [mobileOpen, setMobileOpen] = useState(false)
 

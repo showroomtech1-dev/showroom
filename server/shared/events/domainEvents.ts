@@ -19,6 +19,8 @@ export interface DomainEvents {
   "user.passwordResetByAdmin": { organizationId: string; userId: string; tempPassword: string };
   "user.passwordChanged": { organizationId: string; userId: string };
   "auth.passwordResetRequested": { organizationId: string; userId: string; code: string };
+  "auth.signedIn": { organizationId: string; userId: string; method: "password" | "google" | "register"; ip: string | null };
+  "business.registered": { organizationId: string; ownerUserId: string; method: "form" | "google" };
   "sale.created": { organizationId: string; saleId: string };
   "leave.reviewed": { organizationId: string; leaveId: string };
   "payslip.issued": { organizationId: string; payslipIds: string[] };

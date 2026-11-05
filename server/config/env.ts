@@ -115,6 +115,13 @@ export const env = {
   otpTtlMinutes: readInt("OTP_TTL_MINUTES", 15),
   googleClientId: read("GOOGLE_CLIENT_ID"),
   firebase: firebaseConfig(),
+  /** People who run the platform itself (not a business). They see every sign-up and who is online. */
+  platformAdminEmails: read("PLATFORM_ADMIN_EMAILS")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+  /** Live presence over Socket.io. Only works on a long-running server (Render), not on Vercel functions. */
+  socketEnabled: readBool("SOCKET_ENABLED", true),
 } as const;
 
 function firebaseConfig() {

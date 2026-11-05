@@ -18,6 +18,8 @@ export interface SessionUserDTO {
   roleKey: string;
   roleName: string;
   mustChangePassword: boolean;
+  /** Listed in PLATFORM_ADMIN_EMAILS — may open the cross-business platform view. */
+  isPlatformAdmin: boolean;
 }
 
 export interface SessionDTO {

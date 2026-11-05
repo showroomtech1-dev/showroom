@@ -2,6 +2,7 @@
 // If permission resolution fails it answers 503 — it never fails open.
 import type { NextFunction, Request, Response } from "express";
 import { resolveActor } from "../../modules/auth/services/actorResolver";
+import { markSeen } from "../../modules/platform/services/lastSeen";
 import { AppError } from "../errors/AppError";
 import { verifyAccessToken } from "../utils/jwt";
 
@@ -28,6 +29,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       return;
     }
     req.user = { ...actor, ip: req.ip };
+    markSeen(actor.id);
     next();
   } catch (err) {
     console.error("[auth] permission resolution failed", err);

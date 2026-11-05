@@ -9,6 +9,7 @@ import { useClockInOut, useMyEmployeeProfile, useTodayAttendance } from "@/hooks
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { formatDateTime } from "@/lib/utils"
 
@@ -99,11 +100,12 @@ export default function ProfilePage() {
                 data-cy="profile-name"
               />
               <Input label="Email Address" value={user?.email ?? ""} disabled />
-              <Input
+              <PhoneInput
+                id="profile-phone"
                 label="Phone Number"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+234..."
+                onChange={setPhone}
+                placeholder="803 123 4567"
                 data-cy="profile-phone"
               />
               <div className="grid grid-cols-2 gap-3 pt-1">

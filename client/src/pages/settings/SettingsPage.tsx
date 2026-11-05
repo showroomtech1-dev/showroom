@@ -14,6 +14,7 @@ import {
 import { fromBps, fromKobo, toBps, toKobo } from "@/lib/money"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { AuditAndTrashTab, RolesTab, SecurityPasswordTab, UsersTab } from "@/components/settings/UsersAndRolesTabs"
 
 type SettingsTab = "general" | "branches" | "users" | "roles" | "security" | "audit"
@@ -135,7 +136,7 @@ export default function SettingsPage() {
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <Input label="Business Name" value={bizName} onChange={(e) => setBizName(e.target.value)} data-cy="biz-name" />
-              <Input label="Phone Number" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} />
+              <PhoneInput label="Phone Number" value={bizPhone} onChange={setBizPhone} data-cy="biz-phone" />
               <Input label="Email Address" value={bizEmail} onChange={(e) => setBizEmail(e.target.value)} />
               <Input label="Address" value={bizAddress} onChange={(e) => setBizAddress(e.target.value)} />
             </div>

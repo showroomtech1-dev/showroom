@@ -1,8 +1,9 @@
 import React, { useState } from "react"
-import { ArrowRight, Building2, Lock, Mail, Phone, User } from "lucide-react"
+import { ArrowRight, Building2, Lock, Mail, User } from "lucide-react"
 import { registerFormSchema } from "@/lib/validation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import type { RegisterPayload } from "@/types/auth.types"
 
 interface RegisterFormProps {
@@ -96,20 +97,16 @@ export function RegisterForm({ onSubmit, submitting }: RegisterFormProps) {
           <Mail className="pointer-events-none absolute right-3 top-7.5 h-3.5 w-3.5 text-slate-400" />
         </div>
 
-        <div className="relative">
-          <Input
-            id="register-phone"
-            label="Phone (Optional)"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="0803 000 0000"
-            error={errors.phone}
-            className="h-9 text-xs"
-            data-cy="register-phone"
-          />
-          <Phone className="pointer-events-none absolute right-3 top-7.5 h-3.5 w-3.5 text-slate-400" />
-        </div>
+        <PhoneInput
+          id="register-phone"
+          label="Phone (Optional)"
+          value={phone}
+          onChange={setPhone}
+          placeholder="803 000 0000"
+          error={errors.phone}
+          compact
+          data-cy="register-phone"
+        />
       </div>
 
       <div className="relative">

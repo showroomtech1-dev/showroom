@@ -64,11 +64,11 @@ export function DashboardLayout() {
 
           {/* Sticky Top Bar */}
           <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 sm:px-6 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/90">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="flex lg:hidden h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 cursor-pointer"
+                className="flex lg:hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300 cursor-pointer"
                 aria-label="Open menu"
                 data-cy="mobile-sidebar-trigger"
               >
@@ -77,7 +77,7 @@ export function DashboardLayout() {
 
               {/* Branch Selector */}
               {canAllBranches && branches.length > 0 ? (
-                <div className="w-48 sm:w-56">
+                <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
                   <Select
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
@@ -102,7 +102,7 @@ export function DashboardLayout() {
               ) : null}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <PwaInstallButton />
 
               {/* Quick POS button on desktop/tablet */}
@@ -182,7 +182,7 @@ export function DashboardLayout() {
           </header>
 
           {/* Main Workspace */}
-          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto">
+          <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto">
             <Outlet />
           </main>
         </div>

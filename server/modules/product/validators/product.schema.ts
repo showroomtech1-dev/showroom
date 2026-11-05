@@ -63,6 +63,8 @@ export const updateProductSchema = z.object({
       reorderLevel: reorder,
       supplierId: uuid.nullable(),
       isActive: z.boolean(),
+      /** Barcode of the product's only variant (products without variants). */
+      barcode: code(64),
       /** Also apply the new cost/selling price to every variant. */
       applyPricesToVariants: z.boolean(),
       /** Optional opening / updated stock quantity for the product's primary variant. */

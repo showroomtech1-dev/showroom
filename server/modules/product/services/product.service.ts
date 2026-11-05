@@ -165,7 +165,15 @@ export class ProductService {
     const before = await this.products.findById(actor.organizationId, id);
     if (!before) throw AppError.notFound("Product not found");
     await this.assertRefs(actor, data.categoryId, data.supplierId);
-    const { applyPricesToVariants, openingQuantity, openingStock, branchId, ...fields } = data;
+    const { applyPricesToVariants, openingQuantity, openingStock, branchId, barcode, ...fields } = data;
+    // A barcode belongs to a variant. For a product without variants it is set here on its single default variant;
+    // products with variants set theirs per variant.
+    let barcodeVariantId: string | null = null;
+    if (barcode !== undefined) {
+      if (before.hasVariants) throw AppError.badRequest("This product has variants — set each variant's barcode on the variant instead");
+      barcodeVariantId = (await this.variants.listByProduct(id))[0]?.id ?? null;
+      if (barcode && barcodeVariantId) await this.assertCodesFree(actor, [{ barcode }], barcodeVariantId);
+    }
     const targetStock = openingQuantity ?? openingStock;
     const resolvedBranchId =
       targetStock !== undefined ? await this.branches.resolveForWrite(actor, branchId) : null;
@@ -173,6 +181,9 @@ export class ProductService {
     await inTransaction(async (tx) => {
       if (Object.keys(fields).length > 0) {
         await this.products.update(actor.organizationId, id, fields, tx);
+      }
+      if (barcodeVariantId) {
+        await this.variants.update(actor.organizationId, barcodeVariantId, { barcode: barcode || null }, tx);
       }
       if (applyPricesToVariants && (data.costPrice !== undefined || data.sellingPrice !== undefined)) {
         await this.variants.updatePricesForProduct(id, { costPrice: data.costPrice, sellingPrice: data.sellingPrice }, tx);

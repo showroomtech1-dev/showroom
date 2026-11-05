@@ -92,7 +92,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 [&>*]:min-w-0">
         <StatCard
           label="Today's Sales"
           value={formatMoney(summary.today.sales, currencySymbol)}
@@ -144,7 +144,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts & Cash Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 [&>*]:min-w-0">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -154,11 +154,17 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex h-48 items-end gap-1.5 sm:gap-2 pt-4">
-              {(charts?.salesTrend ?? []).map((pt) => {
+              {(charts?.salesTrend ?? []).map((pt, i, all) => {
                 const heightPct = Math.max(Math.round((pt.total / maxDailySale) * 100), 4)
                 return (
                   <div key={pt.date} className="group relative flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-7 z-10 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white shadow-md">
+                    {/* display:none (not opacity:0) when idle, so an invisible tooltip can't widen the page;
+                        anchored to the nearer chart edge so it never runs off-screen. */}
+                    <div
+                      className={`pointer-events-none absolute -top-7 z-10 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white shadow-md group-hover:block ${
+                        i < all.length / 2 ? "left-0" : "right-0"
+                      }`}
+                    >
                       {pt.date.slice(5)}: {formatMoney(pt.total, currencySymbol)} ({pt.count})
                     </div>
                     <div
@@ -240,7 +246,7 @@ export default function DashboardPage() {
 
       {/* Profit over time & expenses by category (each shown only when the user may see it) */}
       {charts && (charts.profitByMonth.length > 0 || can("expense.read")) && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 [&>*]:min-w-0">
           {charts.profitByMonth.length > 0 && (
             <Card className="lg:col-span-3">
               <CardHeader>
@@ -267,7 +273,7 @@ export default function DashboardPage() {
       )}
 
       {/* Bottom 3 Panels: Top Products, Stock Alerts, Upcoming Payments */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 [&>*]:min-w-0">
         {/* Top Products */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

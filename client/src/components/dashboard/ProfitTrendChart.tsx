@@ -56,7 +56,7 @@ export function ProfitTrendChart({ data, currencySymbol }: Props) {
       <div className="relative h-44" role="list" aria-label="Net profit by month">
         {/* Zero baseline */}
         <div className="absolute inset-x-0 border-t border-slate-300 dark:border-slate-600" style={{ top: `${upShare * 100}%` }} aria-hidden />
-        <div className="flex h-full items-stretch gap-2">
+        <div className="flex h-full items-stretch gap-1 sm:gap-2">
           {data.map((d) => {
             const isProfit = d.netProfit >= 0
             const size = (Math.abs(d.netProfit) / range) * 100
@@ -87,10 +87,12 @@ export function ProfitTrendChart({ data, currencySymbol }: Props) {
           })}
         </div>
       </div>
-      <div className="mt-1.5 flex gap-2">
+      <div className="mt-1.5 flex gap-1 overflow-hidden sm:gap-2">
         {data.map((d) => (
-          <span key={d.month} className="flex-1 text-center text-[10px] font-mono text-slate-500 dark:text-slate-400">
-            {monthLabel(d.month)}
+          <span key={d.month} className="min-w-0 flex-1 text-center text-[10px] font-mono text-slate-500 dark:text-slate-400">
+            {/* Month only on phones (12 labels with the year are wider than the screen). */}
+            <span className="sm:hidden">{monthLabel(d.month).split(" ")[0]}</span>
+            <span className="hidden sm:inline">{monthLabel(d.month)}</span>
           </span>
         ))}
       </div>

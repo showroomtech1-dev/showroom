@@ -145,7 +145,7 @@ export default function PosPage() {
       setQuery("")
     } else {
       setQuery(code)
-      toast.error(`No product with barcode or SKU "${code}"`)
+      toast.error(`No product with barcode or SKU "${code}"`, { description: "Save this number as the product's Barcode under Products → Edit, then scan again." })
     }
   }
 

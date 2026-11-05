@@ -17,6 +17,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { BarcodeField } from "@/components/inventory/BarcodeField"
 import type { ProductListItem } from "@/types/inventory.types"
 
 interface ProductEditorModalProps {
@@ -30,6 +31,9 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
   const categoriesQuery = useProductCategories()
   const suppliersQuery = useSuppliers({ limit: 100 })
   const saveProduct = useSaveProduct()
+  // A product without variants keeps its barcode on its single default variant, so load it for editing.
+  const detailQuery = useProduct(product && !product.hasVariants ? product.id : "")
+  const existingBarcode = detailQuery.data?.variants[0]?.barcode ?? ""
 
   const [name, setName] = useState("")
   const [brand, setBrand] = useState("")
@@ -37,6 +41,7 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
   const [categoryId, setCategoryId] = useState("")
   const [supplierId, setSupplierId] = useState("")
   const [sku, setSku] = useState("")
+  const [barcode, setBarcode] = useState("")
   const [costNaira, setCostNaira] = useState("")
   const [priceNaira, setPriceNaira] = useState("")
   const [reorderLevel, setReorderLevel] = useState("5")
@@ -66,7 +71,13 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
       setReorderLevel("5")
       setOpeningStock("0")
     }
+    setBarcode("")
   }, [product, open])
+
+  // Fill in the saved barcode once the product's variant has loaded.
+  useEffect(() => {
+    if (product && !product.hasVariants) setBarcode(existingBarcode)
+  }, [product, open, existingBarcode])
 
   const handleSave = async () => {
     if (!name.trim()) return toast.error("Product name is required")
@@ -81,6 +92,8 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
           categoryId: categoryId || null,
           supplierId: supplierId || null,
           sku: !product && sku.trim() ? sku.trim() : undefined,
+          // New product: store it. Existing single-variant product: set or clear it (variants have their own).
+          ...(!product ? { barcode: barcode.trim() || undefined } : !product.hasVariants ? { barcode: barcode.trim() || null } : {}),
           costPrice: toKobo(costNaira),
           sellingPrice: toKobo(priceNaira),
           reorderLevel: Number(reorderLevel) || 0,
@@ -124,9 +137,16 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
             onChange={(e) => setSku(e.target.value)}
             placeholder="Auto-generated"
             disabled={Boolean(product)}
-            tooltip="Unique product code or barcode number used for scanning at POS. Leave blank to auto-generate."
+            tooltip="Your own unique product code. Leave blank to auto-generate. The product's printed barcode goes in the Barcode field below."
           />
         </div>
+        {product?.hasVariants ? (
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+            This product has variants. Each variant has its own barcode — open the product&apos;s details and edit the variant.
+          </p>
+        ) : (
+          <BarcodeField value={barcode} onChange={setBarcode} />
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Input label="Cost Price (₦)" type="number" placeholder="0.00" value={costNaira} onChange={(e) => setCostNaira(e.target.value)} />
           <Input label="Selling Price (₦) *" type="number" placeholder="0.00" value={priceNaira} onChange={(e) => setPriceNaira(e.target.value)} data-cy="product-price" />
@@ -181,6 +201,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
   const [editVariantId, setEditVariantId] = useState<string | null>(null)
   const [vName, setVName] = useState("")
   const [vSku, setVSku] = useState("")
+  const [vBarcode, setVBarcode] = useState("")
   const [vCost, setVCost] = useState("")
   const [vPrice, setVPrice] = useState("")
   const [vOpening, setVOpening] = useState("0")
@@ -191,6 +212,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
     setEditVariantId(null)
     setVName("")
     setVSku("")
+    setVBarcode("")
     setVCost("")
     setVPrice("")
     setVOpening("0")
@@ -207,6 +229,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
         payload: {
           name: vName.trim(),
           sku: vSku.trim() || undefined,
+          barcode: vBarcode.trim() || null,
           costPrice: toKobo(vCost),
           sellingPrice: toKobo(vPrice),
           openingQuantity: Math.max(0, Math.floor(Number(vOpening) || 0)),
@@ -243,6 +266,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
                   <tr>
                     <th className="px-3 py-2">Variant</th>
                     <th className="px-3 py-2">SKU</th>
+                    <th className="px-3 py-2">Barcode</th>
                     {can("inventory.cost.view") && <th className="px-3 py-2 text-right">Cost</th>}
                     <th className="px-3 py-2 text-right">Price</th>
                     <th className="px-3 py-2 text-right">Total Stock</th>
@@ -263,6 +287,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
                       >
                         <td className="px-3 py-2.5 font-medium whitespace-nowrap">{v.name}</td>
                         <td className="px-3 py-2.5 font-mono text-slate-500 whitespace-nowrap">{v.sku}</td>
+                        <td className="px-3 py-2.5 font-mono text-slate-500 whitespace-nowrap">{v.barcode || "—"}</td>
                         {can("inventory.cost.view") && (
                           <td className="px-3 py-2.5 text-right whitespace-nowrap">
                             {v.costPrice !== undefined ? formatMoney(v.costPrice) : "—"}
@@ -280,6 +305,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
                                   setEditVariantId(v.id)
                                   setVName(v.name)
                                   setVSku(v.sku)
+                                  setVBarcode(v.barcode ?? "")
                                   setVCost(v.costPrice !== undefined ? String(fromKobo(v.costPrice)) : "")
                                   setVPrice(String(fromKobo(v.sellingPrice)))
                                   setVOpening(String(v.quantity ?? 0))
@@ -355,6 +381,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
                   onChange={(e) => setVOpening(e.target.value)}
                 />
               </div>
+              <BarcodeField value={vBarcode} onChange={setVBarcode} />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 items-end">
                 <Input
                   label="Cost Price (₦)"

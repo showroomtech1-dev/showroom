@@ -2,6 +2,7 @@
 import { inTransaction, type Tx } from "../../../infrastructure/database/transaction";
 import { assertPermission } from "../../../shared/access/can";
 import { AppError } from "../../../shared/errors/AppError";
+import { domainEvents } from "../../../shared/events/domainEvents";
 import { FileResult } from "../../../shared/http/handler";
 import type { Actor } from "../../../shared/types/actor";
 import { todayIn } from "../../../shared/utils/dates";
@@ -50,7 +51,7 @@ export class PayrollPaymentService {
     item: PayrollItemDTO,
     pay: { amount: number; method: PayRunInput["method"]; accountId?: string; paymentDate: string; reference?: string | null },
     tx: Tx
-  ): Promise<void> {
+  ): Promise<string | null> {
     await this.repo.lockItem(item.id, tx);
     const employee = await this.employees.findById(actor.organizationId, item.employeeId, tx);
     const accountId = await this.ledger.resolveAccount(actor, { method: pay.method, accountId: pay.accountId, branchId: employee?.branchId }, tx);
@@ -67,10 +68,10 @@ export class PayrollPaymentService {
       { accountId, branchId: employee?.branchId ?? null, date: pay.paymentDate, direction: "out", amount: pay.amount, type: "payroll_payment", referenceType: "payroll_payment", referenceId: paymentId, description: `${run.code} salary — ${item.employeeName}` },
       tx
     );
-    if (fullyPaid) await this.issuePayslip(actor, run, { ...item, amountPaid: paid }, tx);
+    return fullyPaid ? this.issuePayslip(actor, run, { ...item, amountPaid: paid }, tx) : null;
   }
 
-  private async issuePayslip(actor: Actor, run: PayrollRunDTO, item: PayrollItemDTO, tx: Tx): Promise<void> {
+  private async issuePayslip(actor: Actor, run: PayrollRunDTO, item: PayrollItemDTO, tx: Tx): Promise<string> {
     const ctx = await this.organizations.exportContext(actor);
     const employee = await this.employees.findById(actor.organizationId, item.employeeId, tx);
     const code = (await this.repo.payslipCodeForItem(item.id, tx)) ?? (await this.codes.next(actor.organizationId, "payslip", tx));
@@ -111,7 +112,7 @@ export class PayrollPaymentService {
       payments: await this.repo.itemPayments(item.id, tx),
       attendance: { daysLate: item.daysLate, daysAbsent: item.daysAbsent },
     };
-    await this.repo.insertPayslip({ organizationId: actor.organizationId, runId: run.id, payrollItemId: item.id, employeeId: item.employeeId, code, snapshot }, tx);
+    return this.repo.insertPayslip({ organizationId: actor.organizationId, runId: run.id, payrollItemId: item.id, employeeId: item.employeeId, code, snapshot }, tx);
   }
 
   private async finishRun(runId: string, tx: Tx): Promise<void> {
@@ -125,6 +126,7 @@ export class PayrollPaymentService {
     assertPermission(actor, "payroll.pay");
     const { timezone, currencySymbol } = await this.settings.get(actor.organizationId);
     const paymentDate = data.paymentDate ?? todayIn(timezone);
+    const issued: string[] = [];
     await inTransaction(async (tx) => {
       const run = await this.lockPayable(actor, runId, tx);
       const items = (await this.repo.items(runId, tx)).filter((i) => !data.itemIds || data.itemIds.includes(i.id));
@@ -134,16 +136,18 @@ export class PayrollPaymentService {
       for (const item of due) {
         const amount = Number(item.netPay) - Number(item.amountPaid);
         total += amount;
-        await this.payOne(actor, run, item, { amount, method: data.method, accountId: data.accountId, paymentDate, reference: data.reference }, tx);
+        const slip = await this.payOne(actor, run, item, { amount, method: data.method, accountId: data.accountId, paymentDate, reference: data.reference }, tx);
+        if (slip) issued.push(slip);
       }
       // Zero-pay lines (fully deducted) still get a payslip.
       for (const item of items.filter((i) => Number(i.netPay) === 0 && !i.payslipId)) {
         await this.repo.updateItem(item.id, { status: "paid" }, tx);
-        await this.issuePayslip(actor, run, item, tx);
+        issued.push(await this.issuePayslip(actor, run, item, tx));
       }
       await this.finishRun(runId, tx);
       await this.audit.log(actor, { action: "pay", entityType: "payroll_run", entityId: runId, summary: `Paid ${due.length} salary(ies) on ${run.code}: ${formatMoney(total, currencySymbol)}`, after: { method: data.method, paymentDate, total } }, tx);
     });
+    if (issued.length) domainEvents.emit("payslip.issued", { organizationId: actor.organizationId, payslipIds: issued });
     return this.payroll.getRun(actor, runId);
   }
 
@@ -152,7 +156,7 @@ export class PayrollPaymentService {
     assertPermission(actor, "payroll.pay");
     const { timezone, currencySymbol } = await this.settings.get(actor.organizationId);
     const paymentDate = data.paymentDate ?? todayIn(timezone);
-    await inTransaction(async (tx) => {
+    const slip = await inTransaction(async (tx) => {
       const run = await this.lockPayable(actor, runId, tx);
       const item = await this.repo.findItem(runId, itemId, tx);
       if (!item) throw AppError.notFound("Payroll line not found");
@@ -160,10 +164,12 @@ export class PayrollPaymentService {
       if (balance <= 0) throw AppError.badRequest(`${item.employeeName} has already been paid in full`);
       const amount = data.amount ?? balance;
       if (amount > balance) throw AppError.badRequest(`Only ${formatMoney(balance, currencySymbol)} is still owed to ${item.employeeName}`);
-      await this.payOne(actor, run, item, { amount, method: data.method, accountId: data.accountId, paymentDate, reference: data.reference }, tx);
+      const issuedSlip = await this.payOne(actor, run, item, { amount, method: data.method, accountId: data.accountId, paymentDate, reference: data.reference }, tx);
       await this.finishRun(runId, tx);
       await this.audit.log(actor, { action: "pay", entityType: "payroll_item", entityId: itemId, summary: `Paid ${item.employeeName} ${formatMoney(amount, currencySymbol)} on ${run.code}`, after: { amount, method: data.method, paymentDate } }, tx);
+      return issuedSlip;
     });
+    if (slip) domainEvents.emit("payslip.issued", { organizationId: actor.organizationId, payslipIds: [slip] });
     return this.payroll.getRun(actor, runId);
   }
 

@@ -107,6 +107,29 @@ export class UserRepository {
     await db(tx).getRepository(UserEntity).softDelete({ id, organizationId });
   }
 
+  async findContactByEmail(email: string): Promise<{ id: string; organizationId: string; name: string; email: string; isActive: boolean } | null> {
+    const rows = await db().query(
+      `SELECT id, organization_id AS "organizationId", name, email, is_active AS "isActive" FROM users WHERE email = $1 AND deleted_at IS NULL`,
+      [email.toLowerCase()]
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Active users who hold `permission` (directly or through the owner's "*"), optionally limited to
+   * people who can see `branchId` (their own branch, no branch, or every branch).
+   */
+  async recipientsWithPermission(organizationId: string, permission: string, branchId: string | null = null): Promise<Array<{ id: string; name: string; email: string }>> {
+    return db().query(
+      `SELECT u.id, u.name, u.email FROM users u JOIN roles r ON r.id = u.role_id
+       WHERE u.organization_id = $1 AND u.deleted_at IS NULL AND u.is_active = true AND r.deleted_at IS NULL
+         AND ('*' = ANY(r.permissions) OR $2 = ANY(r.permissions))
+         AND ($3::uuid IS NULL OR u.branch_id IS NULL OR u.branch_id = $3 OR '*' = ANY(r.permissions) OR 'branch.all' = ANY(r.permissions))
+       ORDER BY u.name LIMIT 50`,
+      [organizationId, permission, branchId]
+    );
+  }
+
   async countActiveWithRole(organizationId: string, roleId: string): Promise<number> {
     return db().getRepository(UserEntity).count({ where: { organizationId, roleId, isActive: true } });
   }

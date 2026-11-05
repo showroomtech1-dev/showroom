@@ -1,4 +1,5 @@
 import { actorOf, handle, input, Paged } from "../../../shared/http/handler";
+import { EmailNotifierService } from "../../notification/services/emailNotifier.service";
 import { CashupService } from "../services/cashup.service";
 import { ReceiptService } from "../services/receipt.service";
 import { SaleService } from "../services/sale.service";
@@ -35,6 +36,13 @@ export class SaleController {
   static receipt = handle("Receipt generated", (req) => {
     const { params, query } = input(req, receiptSchema);
     return ReceiptService.Instance.pdf(actorOf(req), params.id, query.size);
+  });
+
+  static email = handle("Receipt emailed", async (req) => {
+    const actor = actorOf(req);
+    const { id } = input(req, saleIdSchema).params;
+    await SaleService.Instance.get(actor, id); // the caller must be allowed to see this sale
+    return EmailNotifierService.Instance.saleReceipt(actor.organizationId, id, true);
   });
 
   static share = handle("Share links ready", (req) => ReceiptService.Instance.share(actorOf(req), input(req, saleIdSchema).params.id));

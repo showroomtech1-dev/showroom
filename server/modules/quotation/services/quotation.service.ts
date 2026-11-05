@@ -4,6 +4,7 @@ import { inTransaction, type Tx } from "../../../infrastructure/database/transac
 import { assertPermission, can } from "../../../shared/access/can";
 import { readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
+import { domainEvents } from "../../../shared/events/domainEvents";
 import { FileResult } from "../../../shared/http/handler";
 import type { Actor } from "../../../shared/types/actor";
 import { addDays, todayIn } from "../../../shared/utils/dates";
@@ -194,6 +195,7 @@ export class QuotationService {
       await this.audit.log(actor, { action: "update", entityType: "quotation", entityId: id, summary: `Converted quotation ${quote.code} to a sale` }, tx);
       return sale;
     });
+    domainEvents.emit("sale.created", { organizationId: actor.organizationId, saleId: result.saleId });
     return { ...result, sale: await this.sales.get(actor, result.saleId) };
   }
 

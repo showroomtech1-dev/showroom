@@ -4,13 +4,22 @@ import { authMiddleware } from "../../../shared/middleware/auth.middleware";
 import { authRateLimiter } from "../../../shared/middleware/rateLimiter.middleware";
 import { validate } from "../../../shared/middleware/validate.middleware";
 import { AuthController } from "../controllers/auth.controller";
-import { changePasswordSchema, loginSchema, refreshSchema, updateProfileSchema } from "../validators/auth.schema";
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  refreshSchema,
+  resetPasswordWithCodeSchema,
+  updateProfileSchema,
+} from "../validators/auth.schema";
 
 const router = Router();
 
 router.post("/login", publicRoute("sign-in"), authRateLimiter, validate(loginSchema), AuthController.login);
 router.post("/refresh", publicRoute("token refresh"), authRateLimiter, validate(refreshSchema), AuthController.refresh);
 router.post("/logout", publicRoute("revoke refresh token"), validate(refreshSchema), AuthController.logout);
+router.post("/forgot-password", publicRoute("request a password reset code by email"), authRateLimiter, validate(forgotPasswordSchema), AuthController.forgotPassword);
+router.post("/reset-password", publicRoute("reset password with emailed code"), authRateLimiter, validate(resetPasswordWithCodeSchema), AuthController.resetPassword);
 
 router.get("/me", authMiddleware, requireAuthenticatedOnly(), AuthController.me);
 router.patch("/me", authMiddleware, requireAuthenticatedOnly(), validate(updateProfileSchema), AuthController.updateMe);

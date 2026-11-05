@@ -23,6 +23,7 @@ router.use(authMiddleware);
 router.get("/payslips", requirePermission("payroll.read"), validate(listPayslipsSchema), PayrollController.payslips);
 router.get("/payslips/:id", requirePermission("payroll.read"), validate(payslipIdSchema), PayrollController.payslip);
 router.get("/payslips/:id/pdf", requirePermission("payroll.read"), validate(payslipIdSchema), PayrollController.payslipPdf);
+router.post("/payslips/:id/email", requirePermission("payroll.pay"), validate(payslipIdSchema), PayrollController.emailPayslip);
 router.get("/employees/:employeeId/ledger", requirePermission("payroll.read"), validate(employeeLedgerSchema), PayrollController.employeeLedger);
 
 router.get("/runs", requirePermission("payroll.read"), validate(listRunsSchema), PayrollController.list);

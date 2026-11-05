@@ -1,6 +1,7 @@
 import { EntitySchema } from "typeorm";
 import {
   boolColumn,
+  dateColumn,
   intColumn,
   manyToOne,
   moneyColumn,
@@ -33,6 +34,15 @@ export interface OrganizationSettings {
   lateGraceMinutes: number;
   latenessDeduction: number;
   absenceDeduction: number;
+  emailDigestEnabled: boolean;
+  /** Local hour (0–23) after which the daily digest goes out. */
+  emailDigestHour: number;
+  emailAlertsEnabled: boolean;
+  emailReceiptsEnabled: boolean;
+  /** Automatically email customers when a debt becomes overdue. */
+  emailDebtRemindersAuto: boolean;
+  emailPayslipsEnabled: boolean;
+  lastDigestDate: string | null;
   updatedAt: Date;
   organization?: { id: string };
 }
@@ -62,6 +72,13 @@ export const OrganizationSettingsEntity = new EntitySchema<OrganizationSettings>
     lateGraceMinutes: intColumn("late_grace_minutes", 15),
     latenessDeduction: moneyColumn("lateness_deduction"),
     absenceDeduction: moneyColumn("absence_deduction"),
+    emailDigestEnabled: boolColumn("email_digest_enabled", true),
+    emailDigestHour: intColumn("email_digest_hour", 7),
+    emailAlertsEnabled: boolColumn("email_alerts_enabled", true),
+    emailReceiptsEnabled: boolColumn("email_receipts_enabled", true),
+    emailDebtRemindersAuto: boolColumn("email_debt_reminders_auto", false),
+    emailPayslipsEnabled: boolColumn("email_payslips_enabled", true),
+    lastDigestDate: dateColumn("last_digest_date", true),
     updatedAt: updatedAt(),
   },
   relations: { organization: manyToOne("Organization", "organization_id", "CASCADE") },

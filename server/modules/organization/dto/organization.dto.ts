@@ -30,6 +30,13 @@ export interface SettingsDTO {
   lateGraceMinutes: number;
   latenessDeduction: number;
   absenceDeduction: number;
+  emailDigestEnabled: boolean;
+  emailDigestHour: number;
+  emailAlertsEnabled: boolean;
+  emailReceiptsEnabled: boolean;
+  emailDebtRemindersAuto: boolean;
+  emailPayslipsEnabled: boolean;
+  lastDigestDate: string | null;
 }
 
 export interface BusinessDTO {

@@ -4,6 +4,7 @@ import { inTransaction, type Tx } from "../../../infrastructure/database/transac
 import { assertPermission, can } from "../../../shared/access/can";
 import { ownSalesOnly, readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
+import { domainEvents } from "../../../shared/events/domainEvents";
 import type { Actor } from "../../../shared/types/actor";
 import { addDays, resolveRange, toDateIn } from "../../../shared/utils/dates";
 import { randomToken } from "../../../shared/utils/jwt";
@@ -93,6 +94,7 @@ export class SaleService {
     }
     const result = await inTransaction((tx) => this.createInTx(actor, data, tx));
     this.alerts.scanLowStockSoon(actor.organizationId);
+    domainEvents.emit("sale.created", { organizationId: actor.organizationId, saleId: result.saleId });
     return { ...result, sale: await this.get(actor, result.saleId) };
   }
 

@@ -1,4 +1,5 @@
 import { actorOf, handle, input, Paged } from "../../../shared/http/handler";
+import { EmailNotifierService } from "../../notification/services/emailNotifier.service";
 import { PayrollService } from "../services/payroll.service";
 import { PayrollPaymentService } from "../services/payrollPayment.service";
 import {
@@ -52,6 +53,10 @@ export class PayrollController {
   static payslip = handle("Payslip fetched", (req) => PayrollPaymentService.Instance.payslip(actorOf(req), input(req, payslipIdSchema).params.id));
 
   static payslipPdf = handle("Payslip generated", (req) => PayrollPaymentService.Instance.payslipPdf(actorOf(req), input(req, payslipIdSchema).params.id));
+
+  static emailPayslip = handle("Payslip emailed", (req) =>
+    EmailNotifierService.Instance.payslip(actorOf(req).organizationId, input(req, payslipIdSchema).params.id, true)
+  );
 
   static employeeLedger = handle("Employee pay ledger fetched", (req) =>
     PayrollPaymentService.Instance.employeeLedger(actorOf(req), input(req, employeeLedgerSchema).params.employeeId)

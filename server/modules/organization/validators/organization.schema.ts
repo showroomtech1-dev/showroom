@@ -56,6 +56,12 @@ export const updateSettingsSchema = z.object({
       lateGraceMinutes: z.number().int().min(0).max(240),
       latenessDeduction: money,
       absenceDeduction: money,
+      emailDigestEnabled: z.boolean(),
+      emailDigestHour: z.number().int().min(0).max(23),
+      emailAlertsEnabled: z.boolean(),
+      emailReceiptsEnabled: z.boolean(),
+      emailDebtRemindersAuto: z.boolean(),
+      emailPayslipsEnabled: z.boolean(),
     })
     .partial()
     .refine((b) => Object.keys(b).length > 0, "Nothing to update"),

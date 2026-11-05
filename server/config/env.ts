@@ -27,11 +27,11 @@ function readDurationSeconds(key: string): number | undefined {
   return Number(match[1]) * unit;
 }
 
-const MAX_ACCESS_TTL = 24 * 3600;
+const MAX_ACCESS_TTL = 7 * 86_400;
 function accessTtlSeconds(): number {
   const ttl = readDurationSeconds("JWT_ACCESS_EXPIRES_IN") ?? readInt("JWT_ACCESS_TTL_SECONDS", 900);
   if (ttl > MAX_ACCESS_TTL) {
-    console.warn(`[env] Access tokens of ${ttl}s are unsafe; capped at 24h. Use something like JWT_ACCESS_EXPIRES_IN=15m.`);
+    console.warn(`[env] Access tokens of ${ttl}s are unsafe; capped at 7d. Use something like JWT_ACCESS_EXPIRES_IN=7d.`);
     return MAX_ACCESS_TTL;
   }
   return Math.max(ttl, 60);
@@ -103,4 +103,29 @@ export const env = {
     enabled: readBool("SCHEDULER_ENABLED", true),
     intervalMinutes: readInt("SCHEDULER_INTERVAL_MINUTES", 60),
   },
+  /** Where the web app lives — used for links in emails. Defaults to the first CORS origin. */
+  frontendUrl: read("FRONTEND_URL", read("CORS_ORIGINS", "http://localhost:5173").split(",")[0].trim()).replace(/\/+$/, ""),
+  email: emailConfig(),
+  otpTtlMinutes: readInt("OTP_TTL_MINUTES", 15),
 } as const;
+
+function emailConfig() {
+  const provider = read("EMAIL_PROVIDER", "nodemailer").toLowerCase() === "script" ? "script" : "nodemailer";
+  const user = read("EMAIL_USER");
+  // Gmail shows app passwords with spaces ("abcd efgh …"); they work without them.
+  const password = read("EMAIL_PASSWORD").replace(/\s+/g, "");
+  const scriptUrl = read("EMAIL_SCRIPT_URL");
+  // EMAIL_FROM may be `Name <address>` or just an address; only the address is used — the display
+  // name is the business's own name on every email.
+  const fromMatch = /<([^>]+)>/.exec(read("EMAIL_FROM"));
+  const fromAddress = (fromMatch?.[1] ?? read("EMAIL_FROM", user)).trim() || user;
+  return {
+    enabled: readBool("EMAIL_ENABLED", true),
+    provider: provider as "nodemailer" | "script",
+    user,
+    password,
+    scriptUrl,
+    fromAddress,
+    configured: provider === "script" ? Boolean(scriptUrl) : Boolean(user && password),
+  };
+}

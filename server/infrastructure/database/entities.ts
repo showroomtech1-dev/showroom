@@ -3,6 +3,7 @@
 import type { EntitySchema } from "typeorm";
 import { RoleEntity } from "../../modules/access/entities/role.entity";
 import { AuditLogEntity } from "../../modules/audit/entities/auditLog.entity";
+import { PasswordResetEntity } from "../../modules/auth/entities/passwordReset.entity";
 import { RefreshTokenEntity } from "../../modules/auth/entities/refreshToken.entity";
 import { CustomerEntity } from "../../modules/customer/entities/customer.entity";
 import { CustomerPaymentEntity } from "../../modules/customer/entities/customerPayment.entity";
@@ -54,7 +55,7 @@ import { UserEntity } from "../../modules/user/entities/user.entity";
 
 type AnyEntity = EntitySchema;
 
-export const ENTITY_PHASES: Record<1 | 2 | 3 | 4 | 5, AnyEntity[]> = {
+export const ENTITY_PHASES: Record<1 | 2 | 3 | 4 | 5 | 6, AnyEntity[]> = {
   /** Auth, settings, branches, roles, accounts, audit, notifications. */
   1: [
     OrganizationEntity,
@@ -116,6 +117,8 @@ export const ENTITY_PHASES: Record<1 | 2 | 3 | 4 | 5, AnyEntity[]> = {
     LoanEntity,
     LoanRepaymentEntity,
   ],
+  /** Email: password reset codes (plus email settings columns on organization_settings). */
+  6: [PasswordResetEntity],
 };
 
 export const ALL_ENTITIES: AnyEntity[] = Object.values(ENTITY_PHASES).flat();

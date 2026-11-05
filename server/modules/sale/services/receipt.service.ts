@@ -89,6 +89,16 @@ export class ReceiptService {
     return { receiptUrl, message, whatsappUrl: whatsappLink(sale.customerPhone, message) };
   }
 
+  /** Receipt PDF + public link for a sale, without an actor (used by emails). */
+  async forEmail(organizationId: string, saleId: string) {
+    const sale = await this.saleRepo.findById(organizationId, saleId);
+    if (!sale) return null;
+    const [items, payments] = await Promise.all([this.saleRepo.items(sale.id), this.saleRepo.payments(sale.id)]);
+    const business = await this.business(organizationId);
+    const pdf = await renderReceipt(this.build(business, sale, items, payments), "a4");
+    return { sale, items, pdf, receiptUrl: `${env.appUrl}/api/v1/public/receipts/${sale.receiptToken}` };
+  }
+
   /** Public, no login: anyone with the link (sent to the customer) can open the receipt. */
   async publicPdf(token: string, size: Size): Promise<FileResult> {
     const sale = await this.saleRepo.findByReceiptToken(token);

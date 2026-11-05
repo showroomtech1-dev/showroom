@@ -3,6 +3,7 @@
 import { env } from "../../config/env";
 import { RefreshTokenRepository } from "../../modules/auth/repositories/refreshToken.repository";
 import { AlertScannerService } from "../../modules/notification/services/alertScanner.service";
+import { EmailNotifierService } from "../../modules/notification/services/emailNotifier.service";
 
 let timer: NodeJS.Timeout | null = null;
 let running = false;
@@ -12,6 +13,7 @@ async function tick(): Promise<void> {
   running = true;
   try {
     await AlertScannerService.Instance.scanAll();
+    await EmailNotifierService.Instance.sendDueDigests();
     await RefreshTokenRepository.Instance.purgeExpired();
   } catch (err) {
     console.error("[scheduler] scan failed", err);

@@ -1,4 +1,5 @@
 import { actorOf, handle, input, Paged } from "../../../shared/http/handler";
+import { EmailNotifierService } from "../../notification/services/emailNotifier.service";
 import { CustomerService } from "../services/customer.service";
 import { CustomerPaymentService } from "../services/customerPayment.service";
 import {
@@ -33,6 +34,12 @@ export class CustomerController {
   static statement = handle("Customer statement fetched", (req) => {
     const { params, query } = input(req, customerStatementSchema);
     return CustomerService.Instance.statement(actorOf(req), params.id, query);
+  });
+
+  static emailReminder = handle("Reminder emailed", async (req) => {
+    const actor = actorOf(req);
+    const { id } = input(req, customerIdSchema).params;
+    return EmailNotifierService.Instance.debtReminder(actor.organizationId, id, true);
   });
 
   static reminder = handle("Reminder prepared", (req) => CustomerService.Instance.reminder(actorOf(req), input(req, customerIdSchema).params.id));

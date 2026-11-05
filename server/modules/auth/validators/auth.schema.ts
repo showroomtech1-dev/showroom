@@ -34,6 +34,17 @@ export const updateProfileSchema = z.object({
     .refine((b) => Object.keys(b).length > 0, "Nothing to update"),
 });
 
+export const forgotPasswordSchema = z.object({ body: z.object({ email }) });
+
+export const resetPasswordWithCodeSchema = z.object({
+  body: z.object({
+    email,
+    code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email"),
+    newPassword: passwordField,
+  }),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>["body"];
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>["body"];
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>["body"];
+export type ResetPasswordWithCodeInput = z.infer<typeof resetPasswordWithCodeSchema>["body"];

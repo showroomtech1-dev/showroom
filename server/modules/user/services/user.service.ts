@@ -3,6 +3,7 @@ import { assertPermission } from "../../../shared/access/can";
 import { PermissionCache } from "../../../shared/access/permissionCache";
 import { readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
+import { domainEvents } from "../../../shared/events/domainEvents";
 import type { Actor } from "../../../shared/types/actor";
 import { hashPassword } from "../../../shared/utils/password";
 import { RoleService } from "../../access/services/role.service";
@@ -63,6 +64,7 @@ export class UserService {
       await this.audit.log(actor, { action: "create", entityType: "user", entityId: userId, summary: `Created user ${data.name} (${data.email})` }, tx);
       return userId;
     });
+    domainEvents.emit("user.created", { organizationId: actor.organizationId, userId: id, tempPassword: data.password, mustChangePassword: data.mustChangePassword });
     return this.get(actor, id);
   }
 
@@ -92,6 +94,7 @@ export class UserService {
       await this.tokens.revokeAllForUser(id, tx);
       await this.audit.log(actor, { action: "update", entityType: "user", entityId: id, summary: `Reset password for ${user.name}` }, tx);
     });
+    domainEvents.emit("user.passwordResetByAdmin", { organizationId: actor.organizationId, userId: id, tempPassword: data.password });
   }
 
   async remove(actor: Actor, id: string): Promise<void> {

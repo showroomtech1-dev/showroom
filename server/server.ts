@@ -5,11 +5,17 @@ import { createApp } from "./app";
 import { env } from "./config/env";
 import { AppDataSource } from "./infrastructure/database/dataSource";
 import { startScheduler, stopScheduler } from "./infrastructure/scheduler/scheduler";
+import { emailConfigured } from "./shared/utils/mailer";
+import { EmailNotifierService } from "./modules/notification/services/emailNotifier.service";
 
 async function main(): Promise<void> {
   await AppDataSource.initialize();
   const pending = await AppDataSource.showMigrations();
   if (pending) console.warn("[db] There are pending migrations — run `npm run migration:run`.");
+
+  // Emails react to events from the running app only (seeds and scripts never send email).
+  EmailNotifierService.Instance.register();
+  console.log(emailConfigured() ? `[mail] email on (${env.email.provider === "script" ? "Apps Script relay" : "Gmail"})` : "[mail] email off — EMAIL_* not set");
 
   const app = createApp();
   const server = app.listen(env.port, () => {

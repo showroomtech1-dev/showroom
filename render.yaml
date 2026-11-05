@@ -1,8 +1,8 @@
 # Render Blueprint — ShowroomPro API on the free plan.
 # Render → New → Blueprint → pick this repo. You'll be asked for the values marked `sync: false`.
 # The database is the existing Aiven Postgres (DATABASE_URL), not a Render database.
-# Only the variables ShowroomPro reads are listed. The EMAIL_*, FIREBASE_*, GOOGLE_*, SOCKET_*, OTP_*,
-# AI_KEYS_SECRET… entries in a local .env come from another project and are not used here.
+# Only the variables ShowroomPro reads are listed. FIREBASE_*, GOOGLE_*, SOCKET_*, TICKET_*, LOCATION_*,
+# ASSIGNMENT_* and AI_KEYS_SECRET in a local .env come from another project and are not used here.
 services:
   - type: web
     name: showroompro-api
@@ -33,7 +33,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES_IN
-        value: 15m
+        value: 7d
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: BCRYPT_ROUNDS
@@ -46,6 +46,21 @@ services:
       # ── File uploads ─────────────────────────────────────────────────────
       - key: CLOUDINARY_URL
         sync: false # cloudinary://key:secret@cloud_name
+      # ── Email (Gmail by default) ─────────────────────────────────────────
+      - key: EMAIL_PROVIDER
+        value: nodemailer # or "script" to use the Apps Script relay
+      - key: EMAIL_USER
+        sync: false # the Gmail address that sends
+      - key: EMAIL_PASSWORD
+        sync: false # a Gmail App Password (not your normal password)
+      - key: EMAIL_FROM
+        sync: false # optional: sender address, defaults to EMAIL_USER
+      - key: EMAIL_SCRIPT_URL
+        sync: false # only if EMAIL_PROVIDER=script
+      - key: FRONTEND_URL
+        sync: false # web app address used for links in emails
+      - key: OTP_TTL_MINUTES
+        value: "15"
       # ── Reminders ────────────────────────────────────────────────────────
       - key: SCHEDULER_ENABLED
         value: "true"

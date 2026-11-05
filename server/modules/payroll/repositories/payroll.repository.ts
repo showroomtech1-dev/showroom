@@ -130,12 +130,15 @@ export class PayrollRepository {
     );
   }
 
-  async insertPayslip(data: { organizationId: string; runId: string; payrollItemId: string; employeeId: string; code: string; snapshot: Record<string, unknown> }, tx: Tx): Promise<void> {
-    await tx.query(
+  /** Creates (or refreshes) the payslip for a payroll line and returns its id. */
+  async insertPayslip(data: { organizationId: string; runId: string; payrollItemId: string; employeeId: string; code: string; snapshot: Record<string, unknown> }, tx: Tx): Promise<string> {
+    const rows: Array<{ id: string }> = await tx.query(
       `INSERT INTO payslips (organization_id, run_id, payroll_item_id, employee_id, code, snapshot) VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-       ON CONFLICT (payroll_item_id) DO UPDATE SET snapshot = EXCLUDED.snapshot`,
+       ON CONFLICT (payroll_item_id) DO UPDATE SET snapshot = EXCLUDED.snapshot
+       RETURNING id`,
       [data.organizationId, data.runId, data.payrollItemId, data.employeeId, data.code, JSON.stringify(data.snapshot)]
     );
+    return rows[0].id;
   }
 
   async payslipCodeForItem(itemId: string, tx: Tx): Promise<string | null> {

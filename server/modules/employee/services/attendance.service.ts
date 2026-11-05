@@ -3,6 +3,7 @@ import { inTransaction } from "../../../infrastructure/database/transaction";
 import { assertPermission, can } from "../../../shared/access/can";
 import { readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
+import { domainEvents } from "../../../shared/events/domainEvents";
 import type { Actor } from "../../../shared/types/actor";
 import { daysBetweenInclusive, eachDate, minutesAfter, resolveRange, todayIn } from "../../../shared/utils/dates";
 import { AuditService } from "../../audit/services/audit.service";
@@ -165,6 +166,7 @@ export class AttendanceService {
       }
       await this.audit.log(actor, { action: decision === "approved" ? "approve" : "cancel", entityType: "leave_request", entityId: id, summary: `${decision === "approved" ? "Approved" : "Rejected"} ${leave.days}-day ${leave.type} leave for ${leave.employeeName}` }, tx);
     });
+    domainEvents.emit("leave.reviewed", { organizationId: actor.organizationId, leaveId: id });
     return (await this.repo.findLeave(actor.organizationId, id)) as LeaveRequestDTO;
   }
 

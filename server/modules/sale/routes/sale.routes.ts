@@ -32,6 +32,7 @@ saleRouter.get("/", requireAny(...SEES_SALES), validate(listSalesSchema), SaleCo
 saleRouter.get("/:id", requireAny(...SEES_SALES), validate(saleIdSchema), SaleController.get);
 saleRouter.get("/:id/receipt", requireAny(...SEES_SALES), validate(receiptSchema), SaleController.receipt);
 saleRouter.get("/:id/share", requireAny(...SEES_SALES), validate(saleIdSchema), SaleController.share);
+saleRouter.post("/:id/email", requireAny(...SEES_SALES), validate(saleIdSchema), SaleController.email);
 saleRouter.post("/", requirePermission("sale.create"), validate(createSaleSchema), SaleController.create);
 saleRouter.post("/:id/void", requirePermission("sale.void"), validate(voidSaleSchema), SaleController.void);
 

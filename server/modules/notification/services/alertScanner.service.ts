@@ -1,6 +1,7 @@
 // Turns business conditions into in-app alerts: low / out-of-stock items, supplier payments due,
 // customer debts due, recurring expenses due. Runs on a schedule and on demand; an alert closes
 // itself once its condition clears.
+import { domainEvents } from "../../../shared/events/domainEvents";
 import { addDays, todayIn } from "../../../shared/utils/dates";
 import { formatMoney } from "../../../shared/utils/money";
 import { CustomerRepository } from "../../customer/repositories/customer.repository";
@@ -30,8 +31,11 @@ export class AlertScannerService {
   ) {}
 
   private async openAll(organizationId: string, alerts: AlertInput[], types: string[]): Promise<number> {
-    for (const alert of alerts) await this.notifications.open(organizationId, alert);
+    const opened: AlertInput[] = [];
+    for (const alert of alerts) if (await this.notifications.open(organizationId, alert)) opened.push(alert);
     await this.notifications.resolveStale(organizationId, types, alerts.map((a) => a.dedupeKey));
+    // Only brand-new alerts are announced (emails), so nobody is emailed about the same thing twice.
+    if (opened.length > 0) domainEvents.emit("alerts.opened", { organizationId, alerts: opened });
     return alerts.length;
   }
 

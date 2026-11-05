@@ -26,6 +26,7 @@ customerRouter.get("/:id", requirePermission("customer.read"), validate(customer
 customerRouter.get("/:id/purchases", requirePermission("customer.read"), validate(customerHistorySchema), CustomerController.history);
 customerRouter.get("/:id/statement", requirePermission("customer.read"), validate(customerStatementSchema), CustomerController.statement);
 customerRouter.get("/:id/reminder", requireAny("customer.read", "customerpayment.create"), validate(customerIdSchema), CustomerController.reminder);
+customerRouter.post("/:id/reminder/email", requireAny("customer.read", "customerpayment.create"), validate(customerIdSchema), CustomerController.emailReminder);
 customerRouter.post("/", requirePermission("customer.manage"), validate(createCustomerSchema), CustomerController.create);
 customerRouter.patch("/:id", requirePermission("customer.manage"), validate(updateCustomerSchema), CustomerController.update);
 customerRouter.delete("/:id", requirePermission("customer.manage"), validate(customerIdSchema), CustomerController.remove);

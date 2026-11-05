@@ -56,7 +56,7 @@ File uploads (product photos, receipts, payment proof, staff documents, logo) ne
 
 Sign in first: `POST /api/v1/auth/login` `{ "email": "owner@showroompro.test", "password": "Password123!" }`.
 
-**1 — Auth & settings:** `GET /auth/me` · `GET|PATCH /settings` · `PATCH /settings/business` · `POST /settings/logo` · `/branches` · `/users` (+ `/:id/reset-password`, `/lookup`) · `/roles` (+ `/permissions`) · `/accounts` (+ `/:id/statement`, `/options`) · `/account-transfers` · `/audit-logs` · `/notifications` (+ `/unread-count`, `/read-all`, `/scan`)
+**1 — Auth & settings:** `POST /auth/forgot-password` · `POST /auth/reset-password` · `GET /auth/me` · `GET|PATCH /settings` · `PATCH /settings/business` · `POST /settings/logo` · `/branches` · `/users` (+ `/:id/reset-password`, `/lookup`) · `/roles` (+ `/permissions`) · `/accounts` (+ `/:id/statement`, `/options`) · `/account-transfers` · `/audit-logs` · `/notifications` (+ `/unread-count`, `/read-all`, `/scan`)
 
 **2 — Suppliers & inventory:** `/suppliers` (`?type=vendor`, `/:id/statement?format=pdf`, `/payables`) · `/supplies` · `/supplier-payments` (+ `/:id/proof`) · `/products` (+ `/pos-search?q=`, `/barcode/:code`, `/:id/variants`, `/:id/photos`) · `/product-categories` · `/inventory/levels|alerts|movements|valuation` · `POST /inventory/adjustments` · `POST /inventory/transfers` · `/stock-takes` (+ `/:id/items`, `/:id/counts`, `/:id/complete`)
 
@@ -69,6 +69,37 @@ Try: record a supply with a part-payment, then check `GET /suppliers/:id` (balan
 **5 — Employees & payroll:** `/employees` (+ `/me`, `/:id/photo`, `/:id/documents`) · `POST /attendance/clock-in|clock-out` · `POST /attendance/mark` · `/attendance/summary` · `/leave` (+ `/:id/review`) · `/loans` (+ `/:id/repayments`) · `/payroll/runs` → `PATCH /runs/:id/items/:itemId` → `POST /runs/:id/approve` (owner only) → `POST /runs/:id/pay` · `/payroll/payslips/:id/pdf` · `/payroll/employees/:employeeId/ledger`
 
 **6 — Dashboard & reports:** `/dashboard` · `/dashboard/charts` · `/finance/profit-and-loss` · `/finance/cash-flow` · `/finance/profit-trend` · `/finance/payables-receivables` · `/reports/:type?format=pdf` (types: `GET /reports`) · `/system/backup` · `/system/trash` + `POST /system/trash/:type/:id/restore`
+
+## Email
+
+Set `EMAIL_USER` + `EMAIL_PASSWORD` (a Gmail **App Password**: Google Account → Security → 2-Step Verification → App passwords). Gmail through Nodemailer is the default. On startup the server log shows `[mail] email on (Gmail)` or `email off`. Emails are only sent by the running server, never by `npm run seed` or the scripts. Addresses on reserved test domains (the demo `@showroompro.test` logins) are skipped.
+
+| Email | Sent when | Who gets it | Owner can switch off (`PATCH /settings`) |
+|---|---|---|---|
+| Welcome + sign-in details | A user is created | The new user | — |
+| Password reset code | `POST /auth/forgot-password` → `POST /auth/reset-password` | The user | — |
+| Password changed / reset by a manager | Password changed or reset | The user | — |
+| Receipt (PDF attached) | A sale is made for a customer with an email address · `POST /sales/:id/email` | Customer | `emailReceiptsEnabled` |
+| Debt reminder | `POST /customers/:id/reminder/email` · automatically when a debt becomes overdue | Customer | `emailDebtRemindersAuto` (off by default) |
+| Payslip (PDF attached) | Salary paid in full · `POST /payroll/payslips/:id/email` | Employee (profile email or login email) | `emailPayslipsEnabled` |
+| Leave approved / declined | Leave reviewed | Employee | — |
+| Daily digest | Every morning after `emailDigestHour` (default 7 am) | Users with `dashboard.read` | `emailDigestEnabled` |
+| Urgent alerts | A product runs out, or a supplier payment becomes overdue (once per problem) | Users allowed to see that alert | `emailAlertsEnabled` |
+
+`POST /notifications/test-email` sends a test to the signed-in owner.
+
+**Apps Script relay** (`EMAIL_PROVIDER=script`): the server POSTs JSON `{ to, subject, html, text, name, replyTo, attachments: [{ fileName, mimeType, content (base64) }] }` to `EMAIL_SCRIPT_URL`. A matching web app:
+
+```js
+function doPost(e) {
+  var m = JSON.parse(e.postData.contents);
+  var attachments = (m.attachments || []).map(function (a) {
+    return Utilities.newBlob(Utilities.base64Decode(a.content), a.mimeType, a.fileName);
+  });
+  MailApp.sendEmail({ to: m.to, subject: m.subject, htmlBody: m.html, body: m.text, name: m.name, replyTo: m.replyTo, attachments: attachments });
+  return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+}
+```
 
 ## How it fits together
 

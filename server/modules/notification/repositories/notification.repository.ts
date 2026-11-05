@@ -106,14 +106,16 @@ export class NotificationRepository {
     );
   }
 
-  /** Opens an alert unless an unresolved one with the same key already exists. */
-  async open(organizationId: string, alert: AlertInput): Promise<void> {
-    await db().query(
+  /** Opens an alert unless an unresolved one with the same key already exists. Returns true when it is new. */
+  async open(organizationId: string, alert: AlertInput): Promise<boolean> {
+    const rows: Array<{ id: string }> = await db().query(
       `INSERT INTO notifications (organization_id, branch_id, type, severity, title, body, entity_type, entity_id, permission, dedupe_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (organization_id, dedupe_key) WHERE resolved_at IS NULL DO NOTHING`,
+       ON CONFLICT (organization_id, dedupe_key) WHERE resolved_at IS NULL DO NOTHING
+       RETURNING id`,
       [organizationId, alert.branchId, alert.type, alert.severity, alert.title, alert.body, alert.entityType, alert.entityId, alert.permission, alert.dedupeKey]
     );
+    return rows.length > 0;
   }
 
   /** Resolves open alerts of the given types whose key is no longer in `activeKeys`. */

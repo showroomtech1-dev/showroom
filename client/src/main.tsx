@@ -10,11 +10,30 @@ import App from "./App"
 import "./index.css"
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Service worker registration is non-fatal
+  if (import.meta.env.PROD) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Service worker registration is non-fatal
+      })
     })
-  })
+  } else {
+    // In development, unregister any previously installed service worker and clear its asset caches
+    // so Vite's pre-bundled dependency chunks (/node_modules/.vite/deps) are never mixed across hashes.
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const reg of registrations) {
+        reg.unregister()
+      }
+    })
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        for (const key of keys) {
+          if (key.startsWith("showroompro-pwa")) {
+            caches.delete(key)
+          }
+        }
+      })
+    }
+  }
 }
 
 createRoot(document.getElementById("root")!).render(

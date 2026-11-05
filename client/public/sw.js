@@ -1,4 +1,4 @@
-const CACHE_NAME = "showroompro-pwa-v2";
+const CACHE_NAME = "showroompro-pwa-v3";
 const API_CACHE = "showroompro-api-v1";
 // GET endpoints cached for offline selling (paths match whatever host the API runs on).
 const OFFLINE_API = [
@@ -75,8 +75,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never cache other API calls or external OAuth scripts
-  if (url.pathname.startsWith("/api/") || url.origin !== self.location.origin) {
+  // Never cache other API calls, Vite dev module requests, or external OAuth scripts
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/src/") ||
+    url.pathname.startsWith("/node_modules/") ||
+    url.pathname.startsWith("/@") ||
+    url.origin !== self.location.origin
+  ) {
     return;
   }
 
@@ -85,8 +91,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", clone));
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", clone));
+          }
           return response;
         })
         .catch(async () => {
@@ -108,7 +116,7 @@ self.addEventListener("fetch", (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => cachedResponse || Response.error());
 
       return cachedResponse || networkFetch;
     })

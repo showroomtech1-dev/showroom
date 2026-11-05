@@ -82,9 +82,15 @@ export function DashboardLayout() {
                     data-cy="global-branch-selector"
                     className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none dark:text-slate-100 cursor-pointer"
                   >
-                    <option value="">All Branches</option>
+                    <option value="" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                      All Branches
+                    </option>
                     {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
+                      <option
+                        key={b.id}
+                        value={b.id}
+                        className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100"
+                      >
                         {b.name} {b.isMain ? "(Main)" : ""}
                       </option>
                     ))}

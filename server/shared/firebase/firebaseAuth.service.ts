@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
 import { AppError } from "../errors/AppError";
@@ -36,6 +37,10 @@ export class FirebaseAuthService {
     }
 
     const nowSec = Math.floor(Date.now() / 1000);
+    const keyObject = crypto.createPrivateKey({
+      key: env.firebase.privateKey,
+      format: "pem",
+    });
     const assertion = jwt.sign(
       {
         iss: env.firebase.clientEmail,
@@ -49,7 +54,7 @@ export class FirebaseAuthService {
           "https://www.googleapis.com/auth/userinfo.email",
         ].join(" "),
       },
-      env.firebase.privateKey,
+      keyObject,
       { algorithm: "RS256" }
     );
 

@@ -114,7 +114,10 @@ export const env = {
 function firebaseConfig() {
   const projectId = read("FIREBASE_PROJECT_ID");
   const clientEmail = read("FIREBASE_CLIENT_EMAIL");
-  const privateKey = read("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = read("FIREBASE_PRIVATE_KEY")
+    .trim()
+    .replace(/^["']+|["',\s]+$/g, "")
+    .replace(/\\n/g, "\n");
   const webApiKey = read("FIREBASE_API_KEY");
   return {
     projectId,

@@ -86,7 +86,10 @@ export function useSaveExpenseCategory() {
       if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode, res.errors)
       return res.data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [EXPENSE_CATEGORIES_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [EXPENSE_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: [EXPENSES_KEY] })
+    },
   })
 }
 
@@ -97,7 +100,10 @@ export function useDeleteExpenseCategory() {
       const res = await ExpenseEndpoints.removeCategory(id)
       if (!res.success) throw new ApiError(res.message, res.statusCode)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [EXPENSE_CATEGORIES_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [EXPENSE_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: [EXPENSES_KEY] })
+    },
   })
 }
 

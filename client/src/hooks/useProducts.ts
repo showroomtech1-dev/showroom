@@ -156,7 +156,10 @@ export function useSaveProductCategory() {
       if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode, res.errors)
       return res.data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] })
+    },
   })
 }
 
@@ -167,6 +170,9 @@ export function useDeleteProductCategory() {
       const res = await ProductEndpoints.removeCategory(id)
       if (!res.success) throw new ApiError(res.message, res.statusCode)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] })
+    },
   })
 }

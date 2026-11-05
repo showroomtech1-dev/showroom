@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { CheckCircle2, FastForward, Plus, Trash2, Upload } from "lucide-react"
+import { CheckCircle2, Edit2, FastForward, Plus, Trash2, Upload } from "lucide-react"
+import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
   useDeleteExpense,
@@ -32,6 +33,7 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1)
   const [expModalOpen, setExpModalOpen] = useState(false)
   const [recModalOpen, setRecModalOpen] = useState(false)
+  const [editCatId, setEditCatId] = useState<string | null>(null)
   const [newCatName, setNewCatName] = useState("")
 
   const debouncedSearch = useDebouncedSearch(search, 300, () => setPage(1))
@@ -202,19 +204,68 @@ export default function ExpensesPage() {
 
       {tab === "categories" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-4">
-            <h3 className="text-sm font-semibold">New Expense Category</h3>
-            <Input label="Category Name" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
-            <Button
-              className="w-full"
-              onClick={async () => {
-                if (!newCatName.trim()) return
-                await saveCategory.mutateAsync({ name: newCatName.trim() })
-                setNewCatName("")
-              }}
-            >
-              Add Category
-            </Button>
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-4 h-fit">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {editCatId ? "Edit Expense Category" : "New Expense Category"}
+              </h3>
+              {editCatId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditCatId(null)
+                    setNewCatName("")
+                  }}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+            <Input
+              label="Category Name *"
+              placeholder="e.g. Diesel & Generator"
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+            />
+            <div className="flex gap-2">
+              {editCatId && (
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setEditCatId(null)
+                    setNewCatName("")
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                className="flex-1"
+                disabled={saveCategory.isPending}
+                onClick={async () => {
+                  if (!newCatName.trim()) return toast.error("Category name is required")
+                  try {
+                    await saveCategory.mutateAsync({
+                      id: editCatId ?? undefined,
+                      name: newCatName.trim(),
+                    })
+                    toast.success(editCatId ? "Expense category updated" : "Expense category added")
+                    setEditCatId(null)
+                    setNewCatName("")
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Could not save category")
+                  }
+                }}
+              >
+                {saveCategory.isPending
+                  ? "Saving..."
+                  : editCatId
+                    ? "Update Category"
+                    : "Add Category"}
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:col-span-8">
             <table className="w-full text-left text-xs">
@@ -222,23 +273,67 @@ export default function ExpensesPage() {
                 <tr>
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3 text-right">Records</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {(categoriesQuery.data ?? []).map((c) => (
-                  <tr key={c.id}>
-                    <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3 text-right">{c.expenseCount}</td>
-                    <td className="px-4 py-3 text-right">
-                      {!c.isSystem && (
-                        <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(c.id)} className="text-rose-600">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {(categoriesQuery.data ?? []).map((c) => {
+                  const isEditing = editCatId === c.id
+                  return (
+                    <tr
+                      key={c.id}
+                      className={
+                        isEditing
+                          ? "bg-indigo-50/60 dark:bg-indigo-950/30"
+                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      }
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                        {c.name}
+                      </td>
+                      <td className="px-4 py-3 text-right">{c.expenseCount}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit category"
+                            onClick={() => {
+                              setEditCatId(c.id)
+                              setNewCatName(c.name)
+                            }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          {!c.isSystem && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete category"
+                              onClick={async () => {
+                                try {
+                                  await deleteCategory.mutateAsync(c.id)
+                                  if (editCatId === c.id) {
+                                    setEditCatId(null)
+                                    setNewCatName("")
+                                  }
+                                  toast.success("Expense category deleted")
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : "Could not delete category"
+                                  )
+                                }
+                              }}
+                              className="text-rose-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

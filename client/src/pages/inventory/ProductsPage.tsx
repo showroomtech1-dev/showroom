@@ -32,6 +32,7 @@ export default function ProductsPage() {
   const [editTarget, setEditTarget] = useState<ProductListItem | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null)
+  const [editCatId, setEditCatId] = useState<string | null>(null)
   const [catName, setCatName] = useState("")
   const [catDesc, setCatDesc] = useState("")
 
@@ -50,16 +51,27 @@ export default function ProductsPage() {
   const saveCategory = useSaveProductCategory()
   const deleteCategory = useDeleteProductCategory()
 
-  const handleCreateCategory = async () => {
+  const handleSaveCategory = async () => {
     if (!catName.trim()) return toast.error("Category name is required")
     try {
-      await saveCategory.mutateAsync({ name: catName.trim(), description: catDesc.trim() || null })
-      toast.success("Category saved")
+      await saveCategory.mutateAsync({
+        id: editCatId ?? undefined,
+        name: catName.trim(),
+        description: catDesc.trim() || null,
+      })
+      toast.success(editCatId ? "Category updated" : "Category created")
+      setEditCatId(null)
       setCatName("")
       setCatDesc("")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save category")
     }
+  }
+
+  const handleCancelEditCategory = () => {
+    setEditCatId(null)
+    setCatName("")
+    setCatDesc("")
   }
 
   return (
@@ -213,14 +225,55 @@ export default function ProductsPage() {
 
       {tab === "categories" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {can("product.create") && (
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-4">
-              <h3 className="text-sm font-semibold">Add Category</h3>
-              <Input label="Category Name" value={catName} onChange={(e) => setCatName(e.target.value)} />
-              <Input label="Description" value={catDesc} onChange={(e) => setCatDesc(e.target.value)} />
-              <Button className="w-full" onClick={handleCreateCategory} disabled={saveCategory.isPending}>
-                Save Category
-              </Button>
+          {(can("product.create") || can("product.update")) && (
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-4 h-fit">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {editCatId ? "Edit Category" : "Add Category"}
+                </h3>
+                {editCatId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditCategory}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              <Input
+                label="Category Name *"
+                placeholder="e.g. Televisions & Audio"
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                data-cy="category-name-input"
+              />
+              <Input
+                label="Description"
+                placeholder="Optional category notes"
+                value={catDesc}
+                onChange={(e) => setCatDesc(e.target.value)}
+                data-cy="category-desc-input"
+              />
+              <div className="flex gap-2">
+                {editCatId && (
+                  <Button variant="outline" className="flex-1" onClick={handleCancelEditCategory}>
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  className="flex-1"
+                  onClick={handleSaveCategory}
+                  disabled={saveCategory.isPending}
+                  data-cy="category-save-btn"
+                >
+                  {saveCategory.isPending
+                    ? "Saving..."
+                    : editCatId
+                      ? "Update Category"
+                      : "Save Category"}
+                </Button>
+              </div>
             </div>
           )}
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:col-span-8">
@@ -230,29 +283,71 @@ export default function ProductsPage() {
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3 text-right">Products</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {(categoriesQuery.data ?? []).map((cat) => (
-                  <tr key={cat.id}>
-                    <td className="px-4 py-3 font-semibold">{cat.name}</td>
-                    <td className="px-4 py-3 text-slate-500">{cat.description || "—"}</td>
-                    <td className="px-4 py-3 text-right font-medium">{cat.productCount}</td>
-                    <td className="px-4 py-3 text-right">
-                      {can("product.delete") && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteCategory.mutate(cat.id)}
-                          className="text-rose-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {(categoriesQuery.data ?? []).map((cat) => {
+                  const isEditing = editCatId === cat.id
+                  return (
+                    <tr
+                      key={cat.id}
+                      className={
+                        isEditing
+                          ? "bg-indigo-50/60 dark:bg-indigo-950/30"
+                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      }
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
+                        {cat.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                        {cat.description || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">{cat.productCount}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {(can("product.update") || can("product.create")) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit category"
+                              data-cy={`edit-category-${cat.id}`}
+                              onClick={() => {
+                                setEditCatId(cat.id)
+                                setCatName(cat.name)
+                                setCatDesc(cat.description ?? "")
+                              }}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {can("product.delete") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete category"
+                              onClick={async () => {
+                                try {
+                                  await deleteCategory.mutateAsync(cat.id)
+                                  if (editCatId === cat.id) handleCancelEditCategory()
+                                  toast.success("Category removed")
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : "Could not delete category"
+                                  )
+                                }
+                              }}
+                              className="text-rose-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

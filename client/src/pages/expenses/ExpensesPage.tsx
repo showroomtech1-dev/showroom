@@ -18,6 +18,7 @@ import { useDebouncedSearch } from "@/hooks/useDebounce"
 import { formatMoney } from "@/lib/money"
 import { formatDate, newClientRef, startOfMonthIso, todayIso } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
@@ -123,6 +124,7 @@ export default function ExpensesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={expensesQuery.isLoading} error={expensesQuery.isError} empty={(expensesQuery.data?.data ?? []).length === 0} cols={7} />
                 {(expensesQuery.data?.data ?? []).map((e) => (
                   <tr key={e.id}>
                     <td className="px-4 py-3 font-mono font-semibold">{e.code}</td>
@@ -174,6 +176,7 @@ export default function ExpensesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={recurringQuery.isLoading} error={recurringQuery.isError} empty={(recurringQuery.data ?? []).length === 0} cols={6} />
               {(recurringQuery.data ?? []).map((r) => (
                 <tr key={r.id}>
                   <td className="px-4 py-3 font-semibold">{r.name}</td>
@@ -277,6 +280,7 @@ export default function ExpensesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={categoriesQuery.isLoading} error={categoriesQuery.isError} empty={(categoriesQuery.data ?? []).length === 0} cols={3} />
                 {(categoriesQuery.data ?? []).map((c) => {
                   const isEditing = editCatId === c.id
                   return (

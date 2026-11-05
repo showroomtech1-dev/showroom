@@ -15,6 +15,7 @@ import { useDebouncedSearch } from "@/hooks/useDebounce"
 import { formatBps, formatMoney } from "@/lib/money"
 import { formatDate, todayIso } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { Pagination } from "@/components/shared/Pagination"
@@ -113,6 +114,7 @@ export default function PeoplePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={employeesQuery.isLoading} error={employeesQuery.isError} empty={(employeesQuery.data?.data ?? []).length === 0} cols={8} />
                 {(employeesQuery.data?.data ?? []).map((emp) => (
                   <tr key={emp.id}>
                     <td className="px-4 py-3 font-mono text-slate-500">{emp.code}</td>
@@ -172,6 +174,7 @@ export default function PeoplePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={employeesQuery.isLoading} error={employeesQuery.isError} empty={(employeesQuery.data?.data ?? []).length === 0} cols={3} />
                 {(employeesQuery.data?.data ?? []).map((emp) => {
                   const rec = (attendanceQuery.data?.data ?? []).find((a) => a.employeeId === emp.id)
                   return (
@@ -223,6 +226,7 @@ export default function PeoplePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={leaveQuery.isLoading} error={leaveQuery.isError} empty={(leaveQuery.data?.data ?? []).length === 0} cols={5} />
               {(leaveQuery.data?.data ?? []).map((l) => (
                 <tr key={l.id}>
                   <td className="px-4 py-3 font-semibold">{l.employeeName}</td>
@@ -262,6 +266,7 @@ export default function PeoplePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={loansQuery.isLoading} error={loansQuery.isError} empty={(loansQuery.data?.data ?? []).length === 0} cols={6} />
               {(loansQuery.data?.data ?? []).map((ln) => (
                 <tr key={ln.id}>
                   <td className="px-4 py-3 font-mono">{ln.code}</td>

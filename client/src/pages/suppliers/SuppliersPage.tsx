@@ -16,6 +16,7 @@ import { useDebouncedSearch } from "@/hooks/useDebounce"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatCard } from "@/components/shared/StatCard"
@@ -132,6 +133,7 @@ export default function SuppliersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={suppliersQuery.isLoading} error={suppliersQuery.isError} empty={(suppliersQuery.data?.data ?? []).length === 0} cols={7} />
                 {(suppliersQuery.data?.data ?? []).map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-3 font-mono text-slate-500">{s.code}</td>
@@ -205,6 +207,7 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={suppliesQuery.isLoading} error={suppliesQuery.isError} empty={(suppliesQuery.data?.data ?? []).length === 0} cols={8} />
               {(suppliesQuery.data?.data ?? []).map((g) => (
                 <tr key={g.id}>
                   <td className="px-4 py-3 font-mono font-semibold">{g.code}</td>
@@ -249,6 +252,7 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={paymentsQuery.isLoading} error={paymentsQuery.isError} empty={(paymentsQuery.data?.data ?? []).length === 0} cols={6} />
               {(paymentsQuery.data?.data ?? []).map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3 font-mono font-semibold">{p.code}</td>

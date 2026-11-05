@@ -15,6 +15,7 @@ import { useDebouncedSearch } from "@/hooks/useDebounce"
 import { formatMoney } from "@/lib/money"
 import { formatDateTime, humanizeLabel } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatCard } from "@/components/shared/StatCard"
@@ -187,6 +188,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={levelsQuery.isLoading} error={levelsQuery.isError} empty={(levelsQuery.data?.data ?? []).length === 0} cols={6} />
                 {(levelsQuery.data?.data ?? []).map((row) => (
                   <tr key={row.variantId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
@@ -249,6 +251,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={movementsQuery.isLoading} error={movementsQuery.isError} empty={(movementsQuery.data?.data ?? []).length === 0} cols={6} />
                 {(movementsQuery.data?.data ?? []).map((m) => (
                   <tr key={m.id}>
                     <td className="px-4 py-3 text-slate-500">{formatDateTime(m.createdAt)}</td>
@@ -290,6 +293,7 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={takesQuery.isLoading} error={takesQuery.isError} empty={(takesQuery.data?.data ?? []).length === 0} cols={5} />
               {(takesQuery.data?.data ?? []).map((t) => (
                 <tr key={t.id}>
                   <td className="px-4 py-3 font-mono font-semibold">{t.code}</td>

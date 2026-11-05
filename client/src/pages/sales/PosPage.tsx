@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react"
-import { Barcode, Camera, Minus, Plus, ShoppingCart, Trash2, UserPlus, X } from "lucide-react"
+import { Barcode, Camera, Loader2, Minus, Plus, ShoppingCart, Trash2, UserPlus, X } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePosSearch } from "@/hooks/useProducts"
@@ -7,6 +7,7 @@ import { useStockLevels } from "@/hooks/useInventory"
 import { useCustomers } from "@/hooks/useCustomers"
 import { useAccounts } from "@/hooks/useFinance"
 import { useOrganization } from "@/hooks/useOrganization"
+import { useSaleBranch } from "@/hooks/useSaleBranch"
 import { useCreateSale } from "@/hooks/useSales"
 import { useDebounce } from "@/hooks/useDebounce"
 import { formatMoney, fromKobo, toKobo } from "@/lib/money"
@@ -42,7 +43,7 @@ interface PaymentLine {
 }
 
 export default function PosPage() {
-  const { can, activeBranchId, user } = useAuth()
+  const { can, user } = useAuth()
   const canOverridePrice = can("sale.priceoverride")
   const [query, setQuery] = useState("")
   const debouncedQuery = useDebounce(query, 200)
@@ -62,10 +63,13 @@ export default function PosPage() {
   const [receiptResult, setReceiptResult] = useState<SaleCreatedResult | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
 
-  const posSearch = usePosSearch(debouncedQuery, activeBranchId || undefined)
+  // The till sells from ONE branch, and stock shown must come from that branch.
+  const { saleBranch, saleBranchId } = useSaleBranch()
+
+  const posSearch = usePosSearch(debouncedQuery, saleBranchId || undefined)
   const defaultLevels = useStockLevels({
     limit: 24,
-    branchId: activeBranchId || undefined,
+    branchId: saleBranchId || undefined,
   })
   const customersQuery = useCustomers({ limit: 100 })
   const accountsQuery = useAccounts()
@@ -93,11 +97,18 @@ export default function PosPage() {
   }, [debouncedQuery, posSearch.data, defaultLevels.data])
 
   const addItemToCart = (item: PosItem) => {
+    // Stock is already known here, so refuse up front instead of failing at checkout.
+    const name = item.label || item.productName
+    if (item.quantity <= 0) return toast.error(`${name} is out of stock`)
+    const inCart = cart.find((c) => c.variantId === item.variantId)?.quantity ?? 0
+    if (inCart + 1 > item.quantity) {
+      return toast.error(`Only ${item.quantity} ${item.unit} of ${name} in stock`)
+    }
     setCart((prev) => {
       const existing = prev.find((c) => c.variantId === item.variantId)
       if (existing) {
         return prev.map((c) =>
-          c.variantId === item.variantId ? { ...c, quantity: c.quantity + 1 } : c
+          c.variantId === item.variantId ? { ...c, quantity: c.quantity + 1, maxQty: item.quantity } : c
         )
       }
       return [
@@ -124,7 +135,7 @@ export default function PosPage() {
   )
   /** Adds the product whose barcode / SKU is exactly `code`; falls back to `fallback` (a single search hit). */
   const addByCode = async (code: string, fallback: PosItem | null) => {
-    const res = await ProductEndpoints.byBarcode(code, activeBranchId || undefined)
+    const res = await ProductEndpoints.byBarcode(code, saleBranchId || undefined)
     if (res.success && res.data) {
       addItemToCart(res.data)
       setQuery("")
@@ -141,7 +152,7 @@ export default function PosPage() {
   const closeScanner = useCallback(() => setScannerOpen(false), [])
   const handleScanned = useCallback(
     (code: string) => void addByCode(code, null),
-    [activeBranchId]
+    [saleBranchId]
   )
 
   const subtotalKobo = totals.subtotal
@@ -180,7 +191,7 @@ export default function PosPage() {
 
     const payload: Record<string, unknown> = {
       clientRef: newClientRef(),
-      branchId: activeBranchId || undefined,
+      branchId: saleBranchId || undefined,
       customerId: customerId || undefined,
       customer:
         !customerId && walkInMode && walkInName.trim()
@@ -260,13 +271,27 @@ export default function PosPage() {
         <BarcodeScannerDialog open={scannerOpen} onClose={closeScanner} onDetected={handleScanned} />
         <RefusedOfflineSales />
 
+        {(debouncedQuery.trim() ? posSearch.isLoading : defaultLevels.isLoading) && catalogItems.length === 0 && (
+          <div className="flex items-center justify-center gap-2 py-16 text-xs font-medium text-slate-500" role="status">
+            <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+            Loading products...
+          </div>
+        )}
+        {!(debouncedQuery.trim() ? posSearch.isLoading : defaultLevels.isLoading) && catalogItems.length === 0 && (
+          <p className="py-16 text-center text-xs text-slate-400">
+            {debouncedQuery.trim() ? "No products match your search" : "No products in stock yet"}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
           {catalogItems.map((item) => (
             <button
               key={item.variantId}
               type="button"
               onClick={() => addItemToCart(item)}
-              className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500"
+              aria-disabled={item.quantity <= 0}
+              className={`group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500 ${
+                item.quantity <= 0 ? "cursor-not-allowed opacity-50 hover:border-slate-200 hover:shadow-none dark:hover:border-slate-800" : ""
+              }`}
               data-cy={`pos-item-${item.sku}`}
             >
               <div>
@@ -279,7 +304,7 @@ export default function PosPage() {
                         : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                     }`}
                   >
-                    {item.quantity} {item.unit}
+                    {item.quantity > 0 ? `${item.quantity} ${item.unit}` : "Out of stock"}
                   </span>
                 </div>
                 <p className="mt-1.5 line-clamp-2 text-xs font-semibold text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
@@ -307,6 +332,11 @@ export default function PosPage() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Current Sale ({cart.reduce((s, i) => s + i.quantity, 0)})
               </h2>
+              {saleBranch && (
+                <span className="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400" title="Stock is taken from this branch">
+                  {saleBranch.name}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1">
               {cart.length > 0 && (
@@ -320,8 +350,10 @@ export default function PosPage() {
             </div>
           </div>
 
+          {/* Scrollable body: items + customer/payment fields. Totals and the pay button stay pinned below. */}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {/* Cart Items */}
-          <div className="my-3 flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="my-3 space-y-2">
             {cart.length === 0 ? (
               <p className="py-10 text-center text-xs text-slate-400">
                 Tap any product or scan a barcode to add items
@@ -333,7 +365,7 @@ export default function PosPage() {
                   className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-800"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 flex-1 break-words text-xs font-medium text-slate-900 dark:text-slate-100">{line.label}</p>
+                    <p className="min-w-0 flex-1 wrap-break-word text-xs font-medium text-slate-900 dark:text-slate-100">{line.label}</p>
                     <button
                       onClick={() => setCart((c) => c.filter((x) => x.variantId !== line.variantId))}
                       className="shrink-0 text-slate-400 hover:text-rose-600"
@@ -358,17 +390,22 @@ export default function PosPage() {
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="w-7 text-center text-xs font-semibold">{line.quantity}</span>
+                      <span className="min-w-7 text-center text-xs font-semibold">{line.quantity}</span>
+                      <span className="text-[10px] text-slate-400">/ {line.maxQty}</span>
                       <button
                         type="button"
+                        disabled={line.quantity >= line.maxQty}
+                        title={line.quantity >= line.maxQty ? `Only ${line.maxQty} in stock` : undefined}
                         onClick={() =>
                           setCart((c) =>
                             c.map((x) =>
-                              x.variantId === line.variantId ? { ...x, quantity: x.quantity + 1 } : x
+                              x.variantId === line.variantId && x.quantity < x.maxQty
+                                ? { ...x, quantity: x.quantity + 1 }
+                                : x
                             )
                           )
                         }
-                        className="rounded border border-slate-200 p-1 dark:border-slate-700"
+                        className="rounded border border-slate-200 p-1 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
@@ -398,7 +435,7 @@ export default function PosPage() {
           </div>
 
           {/* Customer & Payments */}
-          <div className="space-y-2.5 border-t border-slate-200 pt-3 text-xs dark:border-slate-800">
+          <div className="space-y-2.5 border-t border-slate-200 pt-3 pb-3 text-xs dark:border-slate-800">
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1 space-y-1.5">
                 {!walkInMode ? (
@@ -523,7 +560,11 @@ export default function PosPage() {
                 onChange={(e) => setDueDate(e.target.value)}
               />
             )}
+          </div>
+          </div>
 
+          {/* Pinned footer: totals + complete sale */}
+          <div className="space-y-2.5 border-t border-slate-200 pt-3 text-xs dark:border-slate-800">
             <div className="space-y-1 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/60">
               <div className="flex justify-between">
                 <span className="text-slate-500">Subtotal</span>

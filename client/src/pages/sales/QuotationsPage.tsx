@@ -8,6 +8,7 @@ import { SaleEndpoints } from "@/endpoints/sale.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatusBadge } from "@/components/shared/StatusBadge"
@@ -99,6 +100,7 @@ export default function QuotationsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <TableStatus loading={quotesQuery.isLoading} error={quotesQuery.isError} empty={(quotesQuery.data?.data ?? []).length === 0} cols={7} />
             {(quotesQuery.data?.data ?? []).map((q) => (
               <tr key={q.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                 <td className="px-4 py-3 font-mono font-semibold text-blue-600 dark:text-blue-400">

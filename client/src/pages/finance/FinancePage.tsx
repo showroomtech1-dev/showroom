@@ -16,6 +16,7 @@ import { formatBps, formatMoney, toKobo } from "@/lib/money"
 import { formatDate, startOfMonthIso, todayIso } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { StatCard } from "@/components/shared/StatCard"
@@ -177,6 +178,7 @@ export default function FinancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={transfersQuery.isLoading} error={transfersQuery.isError} empty={(transfersQuery.data?.data ?? []).length === 0} cols={6} />
               {(transfersQuery.data?.data ?? []).map((t) => (
                 <tr key={t.id}>
                   <td className="px-4 py-3 font-mono font-semibold">{t.code}</td>
@@ -256,6 +258,7 @@ export default function FinancePage() {
               <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2 text-right">Balance</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={stmtQuery.isLoading} error={stmtQuery.isError} empty={(stmtQuery.data?.rows ?? []).length === 0} cols={4} />
               {(stmtQuery.data?.rows ?? []).map((r) => (
                 <tr key={r.id}>
                   <td className="px-3 py-2">{formatDate(r.transactionDate)}</td>

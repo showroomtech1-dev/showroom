@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { useAuth } from "@/contexts/AuthContext"
+import { useSaleBranch } from "@/hooks/useSaleBranch"
 import { useStockLevels } from "@/hooks/useInventory"
 import { useCustomers } from "@/hooks/useCustomers"
 import { useAccounts } from "@/hooks/useFinance"
@@ -20,8 +20,8 @@ interface QuotationModalProps {
 }
 
 export function QuotationModal({ open, onClose }: QuotationModalProps) {
-  const { activeBranchId } = useAuth()
-  const levelsQuery = useStockLevels({ limit: 100, branchId: activeBranchId || undefined })
+  const { saleBranch, saleBranchId } = useSaleBranch()
+  const levelsQuery = useStockLevels({ limit: 100, branchId: saleBranchId || undefined })
   const customersQuery = useCustomers({ limit: 100 })
   const saveQuotation = useSaveQuotation()
 
@@ -33,7 +33,7 @@ export function QuotationModal({ open, onClose }: QuotationModalProps) {
   const [terms, setTerms] = useState("")
   const [selectedVariantId, setSelectedVariantId] = useState("")
   const [lines, setLines] = useState<
-    Array<{ variantId: string; label: string; quantity: number; unitPriceNaira: string }>
+    Array<{ variantId: string; label: string; quantity: number; unitPriceNaira: string; maxQty: number }>
   >([])
 
   const variants = levelsQuery.data?.data ?? []
@@ -41,24 +41,38 @@ export function QuotationModal({ open, onClose }: QuotationModalProps) {
   const addLine = () => {
     const v = variants.find((x) => x.variantId === selectedVariantId)
     if (!v) return
-    setLines((prev) => [
-      ...prev,
-      {
-        variantId: v.variantId,
-        label: v.variantName !== "Default" ? `${v.productName} (${v.variantName})` : v.productName,
-        quantity: 1,
-        unitPriceNaira: String(fromKobo(v.sellingPrice)),
-      },
-    ])
+    const label = v.variantName !== "Default" ? `${v.productName} (${v.variantName})` : v.productName
+    // Check stock up front (at the branch the sale would come from) instead of failing at conversion.
+    if (v.quantity <= 0) return toast.error(`${label} is out of stock`)
+    const existing = lines.find((l) => l.variantId === v.variantId)
+    if (existing) {
+      if (existing.quantity + 1 > v.quantity) return toast.error(`Only ${v.quantity} ${v.unit} of ${label} in stock`)
+      setLines((prev) =>
+        prev.map((l) => (l.variantId === v.variantId ? { ...l, quantity: l.quantity + 1, maxQty: v.quantity } : l))
+      )
+    } else {
+      setLines((prev) => [
+        ...prev,
+        {
+          variantId: v.variantId,
+          label,
+          quantity: 1,
+          unitPriceNaira: String(fromKobo(v.sellingPrice)),
+          maxQty: v.quantity,
+        },
+      ])
+    }
     setSelectedVariantId("")
   }
 
   const handleSave = async () => {
     if (lines.length === 0) return toast.error("Add at least one item to the quotation")
+    const short = lines.find((l) => l.quantity > l.maxQty)
+    if (short) return toast.error(`Only ${short.maxQty} of ${short.label} in stock — reduce the quantity`)
     try {
       await saveQuotation.mutateAsync({
         payload: {
-          branchId: activeBranchId || undefined,
+          branchId: saleBranchId || undefined,
           customerId: customerId || undefined,
           customerName: !customerId && customerName.trim() ? customerName.trim() : undefined,
           customerPhone: !customerId && customerPhone.trim() ? customerPhone.trim() : undefined,
@@ -115,8 +129,10 @@ export function QuotationModal({ open, onClose }: QuotationModalProps) {
               options={variants.map((v) => ({
                 value: v.variantId,
                 label: `${v.productName} (${v.sku}) - ${formatMoney(v.sellingPrice)}`,
+                badge: v.quantity > 0 ? `${v.quantity} in stock` : "Out of stock",
               }))}
               placeholder="Select item..."
+              hint={saleBranch ? `Stock shown for ${saleBranch.name}` : undefined}
             />
           </div>
           <Button type="button" onClick={addLine} disabled={!selectedVariantId}>
@@ -128,16 +144,21 @@ export function QuotationModal({ open, onClose }: QuotationModalProps) {
         <div className="space-y-2">
           {lines.map((line, i) => (
             <div key={i} className="grid grid-cols-12 items-center gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-800">
-              <span className="col-span-5 font-medium">{line.label}</span>
+              <span className="col-span-5 min-w-0 wrap-break-word font-medium">{line.label}</span>
               <div className="col-span-3">
                 <Input
                   type="number"
                   min={1}
+                  max={line.maxQty}
                   value={line.quantity}
+                  hint={`${line.maxQty} in stock`}
+                  error={line.quantity > line.maxQty ? `Only ${line.maxQty} available` : undefined}
                   onChange={(e) =>
                     setLines((prev) =>
                       prev.map((row, idx) =>
-                        idx === i ? { ...row, quantity: Math.max(1, Number(e.target.value)) } : row
+                        idx === i
+                          ? { ...row, quantity: Math.min(row.maxQty, Math.max(1, Math.floor(Number(e.target.value)) || 1)) }
+                          : row
                       )
                     )
                   }

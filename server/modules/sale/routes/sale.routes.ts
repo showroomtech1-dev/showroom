@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { env } from "../../../config/env";
 import { publicRoute, requireAny, requirePermission } from "../../../shared/access/can";
 import { authMiddleware } from "../../../shared/middleware/auth.middleware";
 import { validate } from "../../../shared/middleware/validate.middleware";
@@ -52,4 +53,12 @@ cashupRouter.post("/", requirePermission("cashup.manage"), validate(closeCashupS
 
 /** /api/v1/public/receipts — the link shared with customers on WhatsApp. */
 export const publicReceiptRouter = Router();
+// The receipt page (a different origin from the API) embeds this PDF in an <iframe>. helmet's defaults
+// (X-Frame-Options: SAMEORIGIN, CSP frame-ancestors 'self') would block that, so allow our own web app to frame it.
+publicReceiptRouter.use((_req, res, next) => {
+  const ancestors = ["'self'", ...env.corsOrigins, "https://*.vercel.app"].join(" ");
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("Content-Security-Policy", `frame-ancestors ${ancestors}`);
+  next();
+});
 publicReceiptRouter.get("/:token", publicRoute("customer receipt link (unguessable token)"), validate(publicReceiptSchema), SaleController.publicReceipt);

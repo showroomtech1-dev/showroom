@@ -7,12 +7,31 @@ import { useStockLevels } from "@/hooks/useInventory"
 import { useAccounts } from "@/hooks/useFinance"
 import { fromKobo, toKobo } from "@/lib/money"
 import { todayIso } from "@/lib/utils"
+import { NIGERIAN_BANKS } from "@/lib/banks"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Select } from "@/components/ui/select"
 import type { Supplier } from "@/types/supplier.types"
+
+const SUPPLIER_CATEGORIES = [
+  "Furniture",
+  "Electronics",
+  "Home Appliances",
+  "Lighting",
+  "Fabrics & Upholstery",
+  "Mattresses & Bedding",
+  "Building Materials",
+  "Logistics & Delivery",
+  "Maintenance & Repairs",
+  "Marketing & Advertising",
+  "Utilities",
+  "Other",
+]
+
+/** Common payment terms, in days (0 = cash on delivery). */
+const PAYMENT_TERMS = [0, 7, 14, 30, 45, 60, 90]
 
 interface SupplierEditorModalProps {
   open: boolean
@@ -44,7 +63,7 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
       setBankName(supplier.bankName ?? "")
       setBankAccountNumber(supplier.bankAccountNumber ?? "")
       setBankAccountName(supplier.bankAccountName ?? "")
-      setPaymentTermsDays(supplier.paymentTermsDays ? String(supplier.paymentTermsDays) : "")
+      setPaymentTermsDays(supplier.paymentTermsDays != null ? String(supplier.paymentTermsDays) : "")
     } else {
       setType("supplier")
       setName("")
@@ -59,8 +78,22 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
     }
   }, [supplier, open])
 
+  // Keep a saved value selectable even if it isn't in the standard list (e.g. older free-typed entries).
+  const withCurrent = (list: string[], current: string) =>
+    current && !list.includes(current) ? [current, ...list] : list
+  const categoryOptions = withCurrent(SUPPLIER_CATEGORIES, category)
+  const bankOptions = withCurrent(NIGERIAN_BANKS, bankName)
+  const termsOptions = (() => {
+    const base = PAYMENT_TERMS.map((d) => ({ value: String(d), label: d === 0 ? "Cash on delivery" : `${d} days` }))
+    return paymentTermsDays && !base.some((o) => o.value === paymentTermsDays)
+      ? [{ value: paymentTermsDays, label: `${paymentTermsDays} days` }, ...base]
+      : base
+  })()
+
   const handleSave = async () => {
     if (!name.trim()) return toast.error("Supplier/Vendor name is required")
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) return toast.error("Enter a valid email address")
+    if (bankAccountNumber && bankAccountNumber.length !== 10) return toast.error("Account number must be 10 digits")
     try {
       await saveSupplier.mutateAsync({
         id: supplier?.id,
@@ -74,7 +107,7 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
           bankName: bankName.trim() || null,
           bankAccountNumber: bankAccountNumber.trim() || null,
           bankAccountName: bankAccountName.trim() || null,
-          paymentTermsDays: paymentTermsDays ? Number(paymentTermsDays) : null,
+          paymentTermsDays: paymentTermsDays !== "" ? Number(paymentTermsDays) : null,
         },
       })
       toast.success(supplier ? "Supplier updated" : "Supplier added")
@@ -85,9 +118,14 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={supplier ? "Edit Supplier / Vendor" : "New Supplier / Vendor"}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2.5">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={supplier ? "Edit Supplier / Vendor" : "New Supplier / Vendor"}
+      maxWidth="max-w-2xl"
+    >
+      <div className="space-y-4 py-1">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select
             label="Partner Type"
             value={type}
@@ -99,20 +137,57 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
           />
           <Input label="Company / Business Name *" value={name} onChange={(e) => setName(e.target.value)} data-cy="supplier-name" />
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Contact Person" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
           <PhoneInput label="Phone" value={phone} onChange={setPhone} />
-          <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input label="Email" type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Select
+            label="Category / Trade"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            options={categoryOptions.map((c) => ({ value: c, label: c }))}
+            placeholder="Select category"
+          />
         </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Input label="Category / Trade" value={category} onChange={(e) => setCategory(e.target.value)} />
-          <Input label="Payment Terms (Days)" type="number" value={paymentTermsDays} onChange={(e) => setPaymentTermsDays(e.target.value)} />
+
+        <Select
+          label="Payment Terms"
+          value={paymentTermsDays}
+          onChange={(e) => setPaymentTermsDays(e.target.value)}
+          options={termsOptions}
+          placeholder="No terms set"
+          hint="How long you have to pay this partner after receiving goods or services."
+        />
+
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Bank details (for paying this partner)</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              label="Bank Name"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              options={bankOptions.map((b) => ({ value: b, label: b }))}
+              placeholder="Select bank"
+            />
+            <Input
+              label="Account Number"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="10-digit account number"
+              value={bankAccountNumber}
+              onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              error={bankAccountNumber && bankAccountNumber.length !== 10 ? "Account number must be 10 digits" : undefined}
+            />
+          </div>
+          <Input
+            label="Account Name"
+            placeholder="Name on the account"
+            value={bankAccountName}
+            onChange={(e) => setBankAccountName(e.target.value)}
+          />
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
-          <Input label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-          <Input label="Account No." value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} />
-          <Input label="Account Name" value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} />
-        </div>
+
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>
             Cancel

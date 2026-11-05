@@ -54,7 +54,8 @@ export function Dialog({
               {description && <DialogDescription>{description}</DialogDescription>}
             </DialogHeader>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          {/* Padding keeps fields (and their focus rings) off the clipping edge and clear of the scrollbar. */}
+          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-1 [scrollbar-gutter:stable]">{children}</div>
         </DialogContent>
       ) : (
         children

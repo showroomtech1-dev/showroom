@@ -15,6 +15,7 @@ import { CustomerEndpoints } from "@/endpoints/customer.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatCard } from "@/components/shared/StatCard"
@@ -158,6 +159,7 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={customersQuery.isLoading} error={customersQuery.isError} empty={(customersQuery.data?.data ?? []).length === 0} cols={6} />
                 {(customersQuery.data?.data ?? []).map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-3 font-mono text-slate-500">{c.code}</td>
@@ -245,6 +247,7 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={debtorsQuery.isLoading} error={debtorsQuery.isError} empty={(debtorsQuery.data ?? []).length === 0} cols={7} />
                 {(debtorsQuery.data ?? []).map((d) => (
                   <tr key={d.customerId}>
                     <td className="px-4 py-3 font-semibold">{d.name}</td>
@@ -276,6 +279,7 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <TableStatus loading={paymentsQuery.isLoading} error={paymentsQuery.isError} empty={(paymentsQuery.data?.data ?? []).length === 0} cols={6} />
               {(paymentsQuery.data?.data ?? []).map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3 font-mono font-semibold">{p.code}</td>

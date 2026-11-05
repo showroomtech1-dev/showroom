@@ -12,6 +12,7 @@ import {
 import { useDebouncedSearch } from "@/hooks/useDebounce"
 import { formatMoney } from "@/lib/money"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
@@ -161,6 +162,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={productsQuery.isLoading} error={productsQuery.isError} empty={(productsQuery.data?.data ?? []).length === 0} cols={7} />
                 {(productsQuery.data?.data ?? []).map((p) => {
                   const status =
                     p.quantity <= 0 ? "out" : p.quantity <= p.reorderLevel ? "low" : "in_stock"
@@ -287,6 +289,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={categoriesQuery.isLoading} error={categoriesQuery.isError} empty={(categoriesQuery.data ?? []).length === 0} cols={4} />
                 {(categoriesQuery.data ?? []).map((cat) => {
                   const isEditing = editCatId === cat.id
                   return (

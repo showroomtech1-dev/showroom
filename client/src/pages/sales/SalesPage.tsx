@@ -8,6 +8,7 @@ import { SaleEndpoints } from "@/endpoints/sale.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate, formatDateTime, todayIso } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { DatePickerField } from "@/components/ui/date-picker"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
@@ -146,6 +147,7 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={salesQuery.isLoading} error={salesQuery.isError} empty={(salesQuery.data?.data ?? []).length === 0} cols={8} />
                 {(salesQuery.data?.data ?? []).map((sale) => (
                   <tr
                     key={sale.id}
@@ -207,6 +209,7 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={returnsQuery.isLoading} error={returnsQuery.isError} empty={(returnsQuery.data?.data ?? []).length === 0} cols={7} />
                 {(returnsQuery.data?.data ?? []).map((ret) => (
                   <tr key={ret.id}>
                     <td className="px-4 py-3 font-mono font-semibold">{ret.code}</td>

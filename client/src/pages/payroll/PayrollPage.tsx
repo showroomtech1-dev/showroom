@@ -6,6 +6,7 @@ import { PayrollEndpoints } from "@/endpoints/payroll.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { EmailPayslipButton } from "@/components/payroll/EmailPayslipButton"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { Pagination } from "@/components/shared/Pagination"
@@ -85,6 +86,7 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={runsQuery.isLoading} error={runsQuery.isError} empty={(runsQuery.data?.data ?? []).length === 0} cols={9} />
                 {(runsQuery.data?.data ?? []).map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-3 font-mono font-semibold text-blue-600 dark:text-blue-400">
@@ -129,6 +131,7 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={payslipsQuery.isLoading} error={payslipsQuery.isError} empty={(payslipsQuery.data?.data ?? []).length === 0} cols={5} />
                 {(payslipsQuery.data?.data ?? []).map((ps) => (
                   <tr key={ps.id}>
                     <td className="px-4 py-3 font-mono font-semibold">{ps.code}</td>

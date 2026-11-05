@@ -13,7 +13,9 @@ import {
 } from "@/hooks/useOrganization"
 import { fromBps, fromKobo, toBps, toKobo } from "@/lib/money"
 import { Button } from "@/components/ui/button"
+import { TableStatus } from "@/components/shared/TableStatus"
 import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { EmailSettingsTab } from "@/components/settings/EmailSettingsTab"
 import { AuditAndTrashTab, RolesTab, SecurityPasswordTab, UsersTab } from "@/components/settings/UsersAndRolesTabs"
@@ -38,6 +40,7 @@ export default function SettingsPage() {
   const [receiptHeader, setReceiptHeader] = useState("")
   const [receiptFooter, setReceiptFooter] = useState("")
   const [taxRatePct, setTaxRatePct] = useState("0")
+  const [taxMode, setTaxMode] = useState<"off" | "exclusive" | "inclusive">("off")
   const [commRatePct, setCommRatePct] = useState("0")
   const [latenessNaira, setLatenessNaira] = useState("0")
 
@@ -55,6 +58,7 @@ export default function SettingsPage() {
       setReceiptHeader(settings.receiptHeader ?? "")
       setReceiptFooter(settings.receiptFooter ?? "")
       setTaxRatePct(String(fromBps(settings.taxRateBps)))
+      setTaxMode(!settings.taxEnabled ? "off" : settings.taxInclusive ? "inclusive" : "exclusive")
       setCommRatePct(String(fromBps(settings.commissionRateBps)))
       setLatenessNaira(String(fromKobo(settings.latenessDeduction)))
     }
@@ -82,6 +86,8 @@ export default function SettingsPage() {
   const handleSaveRules = async () => {
     try {
       await updateSettings.mutateAsync({
+        taxEnabled: taxMode !== "off",
+        taxInclusive: taxMode === "inclusive",
         taxRateBps: toBps(taxRatePct),
         commissionRateBps: toBps(commRatePct),
         latenessDeduction: toKobo(latenessNaira),
@@ -176,7 +182,24 @@ export default function SettingsPage() {
           <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-5 flex flex-col justify-between">
             <div className="space-y-3">
               <h3 className="text-sm font-semibold">Tax, Commission & Attendance Rules</h3>
-              <Input label="Default VAT / Tax Rate (%)" type="number" step="0.1" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} />
+              <Select
+                label="VAT"
+                value={taxMode}
+                onChange={(e) => setTaxMode(e.target.value as typeof taxMode)}
+                options={[
+                  { value: "off", label: "Off — don't charge VAT" },
+                  { value: "exclusive", label: "Added on top — customer pays extra" },
+                  { value: "inclusive", label: "Included in price — customer pays no extra" },
+                ]}
+                hint={
+                  taxMode === "exclusive"
+                    ? "Sale total = item prices + VAT."
+                    : taxMode === "inclusive"
+                      ? "VAT is only shown on the receipt; the total stays the same as the item prices."
+                      : "No VAT is calculated or shown on sales."
+                }
+              />
+              <Input label="Default VAT / Tax Rate (%)" type="number" step="0.1" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} disabled={taxMode === "off"} />
               <Input label="Default Seller Commission (%)" type="number" step="0.1" value={commRatePct} onChange={(e) => setCommRatePct(e.target.value)} />
               <Input label="Lateness Penalty Per Day (₦)" type="number" value={latenessNaira} onChange={(e) => setLatenessNaira(e.target.value)} />
             </div>
@@ -231,6 +254,7 @@ export default function SettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <TableStatus loading={branchesQuery.isLoading} error={branchesQuery.isError} empty={(branchesQuery.data ?? []).length === 0} cols={4} />
                 {(branchesQuery.data ?? []).map((b) => (
                   <tr key={b.id}>
                     <td className="px-4 py-3 font-mono font-semibold">{b.code}</td>

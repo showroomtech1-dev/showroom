@@ -9,7 +9,7 @@ import { LeaveRequestEntity, type LeaveRequest } from "../entities/leaveRequest.
 const ATTENDANCE = `
   SELECT a.id, a.employee_id AS "employeeId", e.first_name || ' ' || e.last_name AS "employeeName", a.branch_id AS "branchId",
          a.attendance_date AS "attendanceDate", a.status, a.clock_in_at AS "clockInAt", a.clock_out_at AS "clockOutAt",
-         a.minutes_late AS "minutesLate", a.notes, a.source, u.name AS "recordedByName"
+         a.minutes_late AS "minutesLate", a.minutes_early AS "minutesEarly", a.notes, a.source, u.name AS "recordedByName"
   FROM attendance a
   JOIN employees e ON e.id = a.employee_id
   LEFT JOIN users u ON u.id = a.recorded_by_id`;
@@ -51,24 +51,24 @@ export class AttendanceRepository {
   }
 
   /** Insert or replace the day's record for an employee. */
-  async upsert(data: Omit<Attendance, "id" | "createdAt" | "updatedAt" | "employee">, tx?: Tx): Promise<void> {
+  async upsert(data: Omit<Attendance, "id" | "createdAt" | "updatedAt" | "employee" | "minutesEarly"> & { minutesEarly?: number }, tx?: Tx): Promise<void> {
     await db(tx).query(
-      `INSERT INTO attendance (organization_id, employee_id, branch_id, attendance_date, status, clock_in_at, clock_out_at, minutes_late, notes, source, recorded_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO attendance (organization_id, employee_id, branch_id, attendance_date, status, clock_in_at, clock_out_at, minutes_late, minutes_early, notes, source, recorded_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $12, $9, $10, $11)
        ON CONFLICT (employee_id, attendance_date) DO UPDATE SET
          status = EXCLUDED.status, clock_in_at = COALESCE(EXCLUDED.clock_in_at, attendance.clock_in_at),
-         clock_out_at = COALESCE(EXCLUDED.clock_out_at, attendance.clock_out_at), minutes_late = EXCLUDED.minutes_late,
+         clock_out_at = COALESCE(EXCLUDED.clock_out_at, attendance.clock_out_at), minutes_late = EXCLUDED.minutes_late, minutes_early = EXCLUDED.minutes_early,
          notes = COALESCE(EXCLUDED.notes, attendance.notes), source = EXCLUDED.source, recorded_by_id = EXCLUDED.recorded_by_id,
          updated_at = now()`,
-      [data.organizationId, data.employeeId, data.branchId, data.attendanceDate, data.status, data.clockInAt, data.clockOutAt, data.minutesLate, data.notes, data.source, data.recordedById]
+      [data.organizationId, data.employeeId, data.branchId, data.attendanceDate, data.status, data.clockInAt, data.clockOutAt, data.minutesLate, data.notes, data.source, data.recordedById, data.minutesEarly ?? 0]
     );
   }
 
-  async clockOut(employeeId: string, date: string, at: Date): Promise<boolean> {
+  async clockOut(employeeId: string, date: string, at: Date, minutesEarly = 0): Promise<boolean> {
     const rows = await updateReturning<{ id: string }>(
       db(),
-      `UPDATE attendance SET clock_out_at = $3, updated_at = now() WHERE employee_id = $1 AND attendance_date = $2 AND clock_out_at IS NULL RETURNING id`,
-      [employeeId, date, at]
+      `UPDATE attendance SET clock_out_at = $3, minutes_early = $4, updated_at = now() WHERE employee_id = $1 AND attendance_date = $2 AND clock_out_at IS NULL RETURNING id`,
+      [employeeId, date, at, minutesEarly]
     );
     return rows.length > 0;
   }

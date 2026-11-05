@@ -22,6 +22,8 @@ export interface Attendance {
   clockInAt: Date | null;
   clockOutAt: Date | null;
   minutesLate: number;
+  /** Minutes before closing time the employee clocked out (0 = on time or later). */
+  minutesEarly: number;
   notes: string | null;
   /** "clock" (self clock-in) or "manual" (marked by a manager). */
   source: string;
@@ -44,6 +46,7 @@ export const AttendanceEntity = new EntitySchema<Attendance>({
     clockInAt: timestampColumn("clock_in_at"),
     clockOutAt: timestampColumn("clock_out_at"),
     minutesLate: intColumn("minutes_late", 0),
+    minutesEarly: intColumn("minutes_early", 0),
     notes: textColumn("notes"),
     source: varchar("source", 10, false, "manual"),
     recordedById: uuidColumn("recorded_by_id", true),

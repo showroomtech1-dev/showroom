@@ -27,6 +27,8 @@ export interface SettingsDTO {
   reminderDaysBeforeDue: number;
   defaultCreditDays: number;
   workStartTime: string;
+  workEndTime: string;
+  lateDeductionEnabled: boolean;
   lateGraceMinutes: number;
   latenessDeduction: number;
   absenceDeduction: number;

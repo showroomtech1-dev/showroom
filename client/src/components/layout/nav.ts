@@ -53,7 +53,6 @@ export const NAV_SECTIONS: NavSection[] = [
         path: "/pos",
         icon: ShoppingCart,
         anyOf: ["sale.create"],
-        badge: "Till",
         mobilePrimary: true,
       },
     ],

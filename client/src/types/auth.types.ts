@@ -46,6 +46,10 @@ export interface OrganizationSettings {
   reminderDaysBeforeDue: number
   defaultCreditDays: number
   workStartTime: string
+  /** Closing time (HH:MM). Clocking out earlier than this (beyond the grace period) is an early leave. */
+  workEndTime: string
+  /** When false, late days are recorded but never deducted from pay. */
+  lateDeductionEnabled: boolean
   lateGraceMinutes: number
   latenessDeduction: number
   absenceDeduction: number

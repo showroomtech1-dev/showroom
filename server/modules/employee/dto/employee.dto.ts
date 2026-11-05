@@ -57,6 +57,7 @@ export interface AttendanceDTO {
   clockInAt: Date | null;
   clockOutAt: Date | null;
   minutesLate: number;
+  minutesEarly: number;
   notes: string | null;
   source: string;
   recordedByName: string | null;

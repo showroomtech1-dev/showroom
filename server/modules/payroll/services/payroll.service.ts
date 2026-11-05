@@ -68,7 +68,7 @@ export class PayrollService {
       daysLate,
       daysAbsent,
       commission,
-      latenessDeduction: daysLate * settings.latenessDeduction,
+      latenessDeduction: settings.lateDeductionEnabled ? daysLate * settings.latenessDeduction : 0,
       absenceDeduction: daysAbsent * settings.absenceDeduction,
       loanLines,
     };

@@ -58,6 +58,7 @@ export interface AttendanceRecord {
   clockInAt: string | null
   clockOutAt: string | null
   minutesLate: number
+  minutesEarly: number
   notes: string | null
   source: string
   recordedByName: string | null

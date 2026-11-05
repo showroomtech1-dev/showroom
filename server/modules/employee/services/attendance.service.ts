@@ -58,9 +58,13 @@ export class AttendanceService {
   async clockOut(actor: Actor): Promise<AttendanceDTO> {
     assertPermission(actor, "attendance.clock");
     const employee = await this.self(actor);
-    const { timezone } = await this.settings.get(actor.organizationId);
+    const { timezone, workEndTime, lateGraceMinutes } = await this.settings.get(actor.organizationId);
+    const now = new Date();
     const date = todayIn(timezone);
-    if (!(await this.repo.clockOut(employee.id, date, new Date()))) {
+    // Leaving before closing time (beyond the grace period) is recorded as an early leave.
+    const early = Math.max(0, -minutesAfter(workEndTime, now, timezone));
+    const minutesEarly = early > lateGraceMinutes ? early : 0;
+    if (!(await this.repo.clockOut(employee.id, date, now, minutesEarly))) {
       throw AppError.badRequest("Clock in first (or you have already clocked out today)");
     }
     return (await this.repo.findForDay(employee.id, date)) as AttendanceDTO;

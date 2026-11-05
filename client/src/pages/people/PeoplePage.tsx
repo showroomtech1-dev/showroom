@@ -24,6 +24,10 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { EmployeeEditorModal, LeaveAndLoanModals } from "@/components/people/EmployeeModal"
 import type { Employee, StaffLoan } from "@/types/employee.types"
 
+/** "08:42" in the viewer's local time, or a dash when there is no time. */
+const clockTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"
+
 export default function PeoplePage() {
   const { can, activeBranchId } = useAuth()
   const [requestedTab, setTab] = useState<"employees" | "attendance" | "leave" | "loans">("employees")
@@ -188,11 +192,13 @@ export default function PeoplePage() {
                 <tr>
                   <th className="px-4 py-3">Staff Member</th>
                   <th className="px-4 py-3">Recorded Status</th>
+                  <th className="px-4 py-3">Clock In</th>
+                  <th className="px-4 py-3">Clock Out</th>
                   <th className="px-4 py-3 text-right">Quick Mark</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                <TableStatus loading={employeesQuery.isLoading} error={employeesQuery.isError} empty={(employeesQuery.data?.data ?? []).length === 0} cols={3} />
+                <TableStatus loading={employeesQuery.isLoading} error={employeesQuery.isError} empty={(employeesQuery.data?.data ?? []).length === 0} cols={5} />
                 {(employeesQuery.data?.data ?? []).map((emp) => {
                   const rec = (attendanceQuery.data?.data ?? []).find((a) => a.employeeId === emp.id)
                   return (
@@ -200,7 +206,11 @@ export default function PeoplePage() {
                       <td className="px-4 py-3 font-medium">{emp.fullName}</td>
                       <td className="px-4 py-3">
                         {rec ? <StatusBadge status={rec.status} /> : <span className="text-slate-400">Unmarked</span>}
+                        {rec && rec.minutesLate > 0 && <span className="ml-2 text-[11px] text-amber-600">{rec.minutesLate}m late</span>}
+                        {rec && rec.minutesEarly > 0 && <span className="ml-2 text-[11px] text-rose-600">Left {rec.minutesEarly}m early</span>}
                       </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{clockTime(rec?.clockInAt)}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{clockTime(rec?.clockOutAt)}</td>
                       <td className="px-4 py-3 text-right">
                         {can("attendance.manage") && (
                           <div className="flex justify-end gap-1">

@@ -58,6 +58,11 @@ export default function SettingsPage() {
   const [taxMode, setTaxMode] = useState<"off" | "exclusive" | "inclusive">("off")
   const [commRatePct, setCommRatePct] = useState("0")
   const [latenessNaira, setLatenessNaira] = useState("0")
+  const [workStart, setWorkStart] = useState("08:30")
+  const [workEnd, setWorkEnd] = useState("17:30")
+  const [graceMins, setGraceMins] = useState("15")
+  const [lateDeduct, setLateDeduct] = useState(true)
+  const [absenceNaira, setAbsenceNaira] = useState("0")
 
   const [branchName, setBranchName] = useState("")
   const [branchCode, setBranchCode] = useState("")
@@ -76,6 +81,11 @@ export default function SettingsPage() {
       setTaxMode(!settings.taxEnabled ? "off" : settings.taxInclusive ? "inclusive" : "exclusive")
       setCommRatePct(String(fromBps(settings.commissionRateBps)))
       setLatenessNaira(String(fromKobo(settings.latenessDeduction)))
+      setWorkStart(settings.workStartTime)
+      setWorkEnd(settings.workEndTime)
+      setGraceMins(String(settings.lateGraceMinutes))
+      setLateDeduct(settings.lateDeductionEnabled)
+      setAbsenceNaira(String(fromKobo(settings.absenceDeduction)))
     }
   }, [settingsQuery.data])
 
@@ -105,12 +115,31 @@ export default function SettingsPage() {
         taxInclusive: taxMode === "inclusive",
         taxRateBps: toBps(taxRatePct),
         commissionRateBps: toBps(commRatePct),
-        latenessDeduction: toKobo(latenessNaira),
       })
       await refreshSession()
-      toast.success("Tax, commission & attendance rules updated")
+      toast.success("Tax & commission updated")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save rules")
+    }
+  }
+
+  const handleSaveWork = async () => {
+    if (workEnd <= workStart) return toast.error("Closing time must be after the start time")
+    const grace = Math.floor(Number(graceMins))
+    if (!Number.isFinite(grace) || grace < 0 || grace > 240) return toast.error("Grace period must be between 0 and 240 minutes")
+    try {
+      await updateSettings.mutateAsync({
+        workStartTime: workStart,
+        workEndTime: workEnd,
+        lateGraceMinutes: grace,
+        lateDeductionEnabled: lateDeduct,
+        latenessDeduction: toKobo(latenessNaira),
+        absenceDeduction: toKobo(absenceNaira),
+      })
+      await refreshSession()
+      toast.success("Work hours & attendance rules updated")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save work hours")
     }
   }
 
@@ -186,7 +215,7 @@ export default function SettingsPage() {
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-5 flex flex-col justify-between">
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Tax, Commission & Attendance Rules</h3>
+              <h3 className="text-sm font-semibold">Tax & Commission</h3>
               <Select
                 label="VAT"
                 value={taxMode}
@@ -206,7 +235,6 @@ export default function SettingsPage() {
               />
               <Input label="Default VAT / Tax Rate (%)" type="number" step="0.1" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} disabled={taxMode === "off"} />
               <Input label="Default Seller Commission (%)" type="number" step="0.1" value={commRatePct} onChange={(e) => setCommRatePct(e.target.value)} />
-              <Input label="Lateness Penalty Per Day (₦)" type="number" value={latenessNaira} onChange={(e) => setLatenessNaira(e.target.value)} />
             </div>
             {can("settings.manage") && (
               <Button
@@ -216,7 +244,69 @@ export default function SettingsPage() {
                 data-cy="save-settings-btn"
               >
                 <Save className="h-4 w-4" />
-                {updateSettings.isPending ? "Saving..." : "Save Tax & Rules"}
+                {updateSettings.isPending ? "Saving..." : "Save Tax & Commission"}
+              </Button>
+            )}
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-12">
+            <div>
+              <h3 className="text-sm font-semibold">Work Hours & Attendance</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                When the showroom opens and closes, and what happens when staff arrive late, leave early or are absent.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Input label="Opening / Start Time" type="time" value={workStart} onChange={(e) => setWorkStart(e.target.value)} disabled={!can("settings.manage")} />
+              <Input label="Closing Time" type="time" value={workEnd} onChange={(e) => setWorkEnd(e.target.value)} disabled={!can("settings.manage")} />
+              <Input
+                label="Grace Period (minutes)"
+                type="number"
+                min={0}
+                max={240}
+                value={graceMins}
+                onChange={(e) => setGraceMins(e.target.value)}
+                disabled={!can("settings.manage")}
+                hint="Arriving within this time after opening isn't late; leaving this long before closing isn't an early leave."
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Select
+                label="When staff arrive late"
+                value={lateDeduct ? "deduct" : "track"}
+                onChange={(e) => setLateDeduct(e.target.value === "deduct")}
+                disabled={!can("settings.manage")}
+                options={[
+                  { value: "deduct", label: "Deduct from salary" },
+                  { value: "track", label: "Record only — never deduct" },
+                ]}
+              />
+              <Input
+                label="Penalty Per Late Day (₦)"
+                type="number"
+                min={0}
+                value={latenessNaira}
+                onChange={(e) => setLatenessNaira(e.target.value)}
+                disabled={!lateDeduct || !can("settings.manage")}
+                hint={lateDeduct ? "Taken off pay for each day marked late." : "Not used while deductions are off."}
+              />
+              <Input
+                label="Penalty Per Absent Day (₦)"
+                type="number"
+                min={0}
+                value={absenceNaira}
+                onChange={(e) => setAbsenceNaira(e.target.value)}
+                disabled={!can("settings.manage")}
+                hint="Taken off pay for each day marked absent. 0 = no deduction."
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Early leaves are recorded in the attendance register but are not deducted. Deductions apply when payroll is prepared and never reduce net pay below zero.
+            </p>
+            {can("settings.manage") && (
+              <Button className="w-full sm:w-auto" onClick={handleSaveWork} disabled={updateSettings.isPending}>
+                <Save className="h-4 w-4" />
+                {updateSettings.isPending ? "Saving..." : "Save Work Hours"}
               </Button>
             )}
           </div>

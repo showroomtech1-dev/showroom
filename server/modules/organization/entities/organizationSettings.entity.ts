@@ -31,6 +31,9 @@ export interface OrganizationSettings {
   reminderDaysBeforeDue: number;
   defaultCreditDays: number;
   workStartTime: string;
+  workEndTime: string;
+  /** When false, late days are recorded but never deducted from pay. */
+  lateDeductionEnabled: boolean;
   lateGraceMinutes: number;
   latenessDeduction: number;
   absenceDeduction: number;
@@ -69,6 +72,8 @@ export const OrganizationSettingsEntity = new EntitySchema<OrganizationSettings>
     reminderDaysBeforeDue: intColumn("reminder_days_before_due", 3),
     defaultCreditDays: intColumn("default_credit_days", 30),
     workStartTime: varchar("work_start_time", 5, false, "08:30"),
+    workEndTime: varchar("work_end_time", 5, false, "17:30"),
+    lateDeductionEnabled: boolColumn("late_deduction_enabled", true),
     lateGraceMinutes: intColumn("late_grace_minutes", 15),
     latenessDeduction: moneyColumn("lateness_deduction"),
     absenceDeduction: moneyColumn("absence_deduction"),

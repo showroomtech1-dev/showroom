@@ -53,6 +53,8 @@ export const updateSettingsSchema = z.object({
       reminderDaysBeforeDue: z.number().int().min(0).max(60),
       defaultCreditDays: z.number().int().min(0).max(365),
       workStartTime: time24,
+      workEndTime: time24,
+      lateDeductionEnabled: z.boolean(),
       lateGraceMinutes: z.number().int().min(0).max(240),
       latenessDeduction: money,
       absenceDeduction: money,

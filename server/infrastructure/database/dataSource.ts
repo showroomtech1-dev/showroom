@@ -40,6 +40,12 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: env.db.logging,
   uuidExtension: "pgcrypto",
-  // Keep connections open and reused, so a flaky network needs fewer new connections (and DNS lookups).
-  extra: { max: 10, keepAlive: true, idleTimeoutMillis: 5 * 60_000, connectionTimeoutMillis: 20_000 },
+  // Reuse connections, but keep the pool small: the database has a hard connection cap shared by every
+  // process (error 53300 "remaining connection slots are reserved…" means it was hit).
+  extra: {
+    max: env.db.poolMax,
+    keepAlive: true,
+    idleTimeoutMillis: env.db.poolIdleMs,
+    connectionTimeoutMillis: 20_000,
+  },
 } as DataSourceOptions);

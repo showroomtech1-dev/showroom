@@ -85,6 +85,12 @@ export const env = {
     name: read("DB_NAME", "showroompro"),
     ssl: readBool("DB_SSL", false),
     logging: readBool("DB_LOGGING", false),
+    // Max connections held by THIS process. Managed Postgres plans allow few connections in total
+    // (e.g. Aiven free/hobby ≈ 20), and every dev server / serverless instance has its own pool.
+    // Defaults to 2 on Vercel (one pool per lambda instance) and 5 elsewhere.
+    poolMax: readInt("DB_POOL_MAX", process.env.VERCEL ? 2 : 5),
+    // Release idle connections sooner on serverless, where instances are frozen rather than closed.
+    poolIdleMs: readInt("DB_POOL_IDLE_MS", process.env.VERCEL ? 10_000 : 30_000),
   },
   jwt: {
     accessSecret: secret("JWT_ACCESS_SECRET", DEV_ACCESS_SECRET),

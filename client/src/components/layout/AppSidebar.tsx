@@ -1,8 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
   Menu,
@@ -74,8 +72,13 @@ export function AppSidebar({
   const renderNavContent = (isCollapsed: boolean, isMobile = false) => (
     <div className="flex h-full flex-col bg-slate-900 text-slate-200 dark:bg-slate-950 border-r border-slate-800">
       {/* Brand header */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 px-4">
-        <div className="flex items-center gap-3 min-w-0">
+      <div
+        className={cn(
+          "relative flex h-16 shrink-0 items-center border-b border-slate-800/80",
+          isCollapsed ? "justify-center px-2" : "justify-between px-4"
+        )}
+      >
+        <div className={cn("flex items-center gap-3 min-w-0", isCollapsed && "justify-center")}>
           {business?.logoUrl ? (
             <img src={business.logoUrl} alt={business.name} className="h-9 w-9 rounded-xl object-cover shrink-0" />
           ) : (
@@ -105,10 +108,19 @@ export function AppSidebar({
             type="button"
             onClick={onToggleCollapse}
             data-cy="sidebar-collapse-toggle"
-            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+            className={cn(
+              "hidden lg:flex items-center justify-center rounded-lg border border-slate-700/80 bg-slate-800/80 text-slate-300 shadow-xs transition-all hover:border-indigo-500/60 hover:bg-indigo-600 hover:text-white cursor-pointer",
+              isCollapsed
+                ? "absolute -right-3.5 top-5 z-40 h-7 w-7 rounded-full border-slate-700 bg-slate-900 shadow-md"
+                : "h-8 w-8 shrink-0"
+            )}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {isCollapsed ? (
+              <PanelLeftOpen className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
           </button>
         )}
       </div>
@@ -212,31 +224,6 @@ export function AppSidebar({
           )
         })}
       </div>
-
-      {/* Desktop Collapse Footer */}
-      {!isMobile && (
-        <div className="hidden lg:block shrink-0 border-t border-slate-800/80 p-2.5">
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            data-cy="sidebar-footer-collapse"
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-100 cursor-pointer",
-              isCollapsed && "justify-center px-2"
-            )}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <PanelLeftOpen className="h-4 w-4 shrink-0" />
-            ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4 shrink-0" />
-                <span className="truncate">Collapse Sidebar</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   )
 

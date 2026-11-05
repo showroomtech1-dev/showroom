@@ -333,10 +333,10 @@ export default function PosPage() {
                   className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-800"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{line.label}</p>
+                    <p className="min-w-0 flex-1 break-words text-xs font-medium text-slate-900 dark:text-slate-100">{line.label}</p>
                     <button
                       onClick={() => setCart((c) => c.filter((x) => x.variantId !== line.variantId))}
-                      className="text-slate-400 hover:text-rose-600"
+                      className="shrink-0 text-slate-400 hover:text-rose-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -399,25 +399,43 @@ export default function PosPage() {
 
           {/* Customer & Payments */}
           <div className="space-y-2.5 border-t border-slate-200 pt-3 text-xs dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              {!walkInMode ? (
-                <Select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  options={(customersQuery.data?.data ?? []).map((c) => ({
-                    value: c.id,
-                    label: `${c.name} (${c.phone || "No phone"})`,
-                  }))}
-                  placeholder="Walk-in Customer (Optional)"
-                />
-              ) : (
-                <div className="grid flex-1 grid-cols-2 gap-1.5">
-                  <Input placeholder="Customer Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} />
-                  <Input placeholder="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} />
-                </div>
-              )}
-              <Button variant="outline" size="icon" onClick={() => setWalkInMode(!walkInMode)} title="Quick New Customer">
-                <UserPlus className="h-4 w-4" />
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {!walkInMode ? (
+                  <Select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                    options={(customersQuery.data?.data ?? []).map((c) => ({
+                      value: c.id,
+                      label: `${c.name} (${c.phone || "No phone"})`,
+                    }))}
+                    placeholder="Walk-in Customer (Optional)"
+                  />
+                ) : (
+                  <>
+                    <Input
+                      placeholder="Customer full name"
+                      value={walkInName}
+                      title={walkInName}
+                      onChange={(e) => setWalkInName(e.target.value)}
+                    />
+                    <Input
+                      type="tel"
+                      placeholder="Phone number"
+                      value={walkInPhone}
+                      onChange={(e) => setWalkInPhone(e.target.value)}
+                    />
+                  </>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setWalkInMode(!walkInMode)}
+                title={walkInMode ? "Pick existing customer" : "Quick New Customer"}
+              >
+                {walkInMode ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
               </Button>
             </div>
 
@@ -452,7 +470,7 @@ export default function PosPage() {
 
             {payments.map((p, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-1.5">
-                <div className="col-span-4">
+                <div className="col-span-5">
                   <Select
                     value={p.method}
                     onChange={(e) =>
@@ -470,19 +488,7 @@ export default function PosPage() {
                     ]}
                   />
                 </div>
-                <div className="col-span-4">
-                  <Select
-                    value={p.accountId}
-                    onChange={(e) =>
-                      setPayments((list) =>
-                        list.map((row, i) => (i === idx ? { ...row, accountId: e.target.value } : row))
-                      )
-                    }
-                    options={(accountsQuery.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
-                    placeholder="Default Acct"
-                  />
-                </div>
-                <div className="col-span-4">
+                <div className="col-span-7">
                   <Input
                     type="number"
                     placeholder="Amount ₦"
@@ -492,6 +498,18 @@ export default function PosPage() {
                         list.map((row, i) => (i === idx ? { ...row, amountNaira: e.target.value } : row))
                       )
                     }
+                  />
+                </div>
+                <div className="col-span-12">
+                  <Select
+                    value={p.accountId}
+                    onChange={(e) =>
+                      setPayments((list) =>
+                        list.map((row, i) => (i === idx ? { ...row, accountId: e.target.value } : row))
+                      )
+                    }
+                    options={(accountsQuery.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
+                    placeholder="Default account"
                   />
                 </div>
               </div>

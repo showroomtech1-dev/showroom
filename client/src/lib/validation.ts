@@ -5,6 +5,17 @@ export const loginFormSchema = z.object({
   password: z.string().min(1, "Password is required"),
 })
 
+export const registerFormSchema = z.object({
+  businessName: z.string().trim().min(2, "Showroom / business name is required").max(160),
+  ownerName: z.string().trim().min(2, "Your full name is required").max(160),
+  email: z.string().trim().email("Enter a valid email address"),
+  phone: z.string().trim().optional(),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/(?=.*[A-Za-z])(?=.*\d)/, "Include at least one letter and one number"),
+})
+
 export const changePasswordFormSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z

@@ -49,12 +49,12 @@ export function Dialog({
       {isSelfContained ? (
         <DialogContent className={maxWidth} onClose={handleClose}>
           {title && (
-            <DialogHeader>
+            <DialogHeader className="shrink-0 pr-6">
               <DialogTitle>{title}</DialogTitle>
               {description && <DialogDescription>{description}</DialogDescription>}
             </DialogHeader>
           )}
-          {children}
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
         </DialogContent>
       ) : (
         children
@@ -76,7 +76,7 @@ export function DialogContent({
   return (
     <div
       className={cn(
-        "relative z-10 my-auto w-full max-h-[88vh] overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900",
+        "relative z-10 my-auto flex w-full max-h-[88vh] flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900",
         className
       )}
       onClick={(e) => e.stopPropagation()}

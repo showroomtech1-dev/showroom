@@ -107,7 +107,23 @@ export const env = {
   frontendUrl: read("FRONTEND_URL", read("CORS_ORIGINS", "http://localhost:5173").split(",")[0].trim()).replace(/\/+$/, ""),
   email: emailConfig(),
   otpTtlMinutes: readInt("OTP_TTL_MINUTES", 15),
+  googleClientId: read("GOOGLE_CLIENT_ID"),
+  firebase: firebaseConfig(),
 } as const;
+
+function firebaseConfig() {
+  const projectId = read("FIREBASE_PROJECT_ID");
+  const clientEmail = read("FIREBASE_CLIENT_EMAIL");
+  const privateKey = read("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const webApiKey = read("FIREBASE_API_KEY");
+  return {
+    projectId,
+    clientEmail,
+    privateKey,
+    webApiKey,
+    configured: Boolean(projectId && clientEmail && privateKey),
+  };
+}
 
 function emailConfig() {
   const provider = read("EMAIL_PROVIDER", "nodemailer").toLowerCase() === "script" ? "script" : "nodemailer";

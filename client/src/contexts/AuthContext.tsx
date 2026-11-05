@@ -5,8 +5,11 @@ import { can as checkCan, canAny as checkCanAny } from "@/lib/can"
 import { tokenStorage } from "@/lib/storage"
 import type {
   BusinessProfile,
+  GoogleSignInPayload,
   LoginPayload,
+  LoginResult,
   OrganizationSettings,
+  RegisterPayload,
   SessionData,
   SessionUser,
 } from "@/types/auth.types"
@@ -33,6 +36,8 @@ interface AuthContextValue {
   can: (code: string) => boolean
   canAny: (codes: readonly string[]) => boolean
   login: (payload: LoginPayload) => Promise<SessionData>
+  register: (payload: RegisterPayload) => Promise<SessionData>
+  googleSignIn: (payload: GoogleSignInPayload) => Promise<SessionData>
   logout: () => Promise<void>
   refreshSession: () => Promise<void>
 }
@@ -82,20 +87,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshSession()
   }, [refreshSession])
 
-  const login = useCallback(async (payload: LoginPayload): Promise<SessionData> => {
-    const res = await AuthEndpoints.login(payload)
-    if (!res.success || !res.data) {
-      throw new ApiError(res.message || "Unable to sign in", res.statusCode, res.errors)
-    }
-    tokenStorage.set(res.data.tokens.accessToken, res.data.tokens.refreshToken)
-    const { tokens: _t, ...sessionData } = res.data
-    setSession(sessionData)
-    setPreviewRole(null)
-    if (sessionData.user.branchId && !checkCan(sessionData.permissions, "branch.all")) {
-      setSelectedBranchId(sessionData.user.branchId)
-    }
-    return sessionData
-  }, [setSelectedBranchId])
+  const applyAuthResult = useCallback(
+    (data: LoginResult): SessionData => {
+      tokenStorage.set(data.tokens.accessToken, data.tokens.refreshToken)
+      const { tokens: _t, ...sessionData } = data
+      setSession(sessionData)
+      setPreviewRole(null)
+      if (sessionData.user.branchId && !checkCan(sessionData.permissions, "branch.all")) {
+        setSelectedBranchId(sessionData.user.branchId)
+      }
+      return sessionData
+    },
+    [setSelectedBranchId]
+  )
+
+  const login = useCallback(
+    async (payload: LoginPayload): Promise<SessionData> => {
+      const res = await AuthEndpoints.login(payload)
+      if (!res.success || !res.data) {
+        throw new ApiError(res.message || "Unable to sign in", res.statusCode, res.errors)
+      }
+      return applyAuthResult(res.data)
+    },
+    [applyAuthResult]
+  )
+
+  const register = useCallback(
+    async (payload: RegisterPayload): Promise<SessionData> => {
+      const res = await AuthEndpoints.register(payload)
+      if (!res.success || !res.data) {
+        throw new ApiError(res.message || "Unable to create account", res.statusCode, res.errors)
+      }
+      return applyAuthResult(res.data)
+    },
+    [applyAuthResult]
+  )
+
+  const googleSignIn = useCallback(
+    async (payload: GoogleSignInPayload): Promise<SessionData> => {
+      const res = await AuthEndpoints.googleSignIn(payload)
+      if (!res.success || !res.data) {
+        throw new ApiError(res.message || "Unable to sign in with Google", res.statusCode, res.errors)
+      }
+      return applyAuthResult(res.data)
+    },
+    [applyAuthResult]
+  )
 
   const logout = useCallback(async () => {
     const refresh = tokenStorage.getRefresh()
@@ -158,6 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       can,
       canAny,
       login,
+      register,
+      googleSignIn,
       logout,
       refreshSession,
     }),
@@ -172,6 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       can,
       canAny,
       login,
+      register,
+      googleSignIn,
       logout,
       refreshSession,
     ]

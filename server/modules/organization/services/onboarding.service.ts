@@ -2,6 +2,7 @@
 // built-in roles, default expense categories, cash / bank / POS accounts and the owner login.
 import { inTransaction } from "../../../infrastructure/database/transaction";
 import { AppError } from "../../../shared/errors/AppError";
+import { FIREBASE_MANAGED_PASSWORD, FirebaseAuthService } from "../../../shared/firebase/firebaseAuth.service";
 import { hashPassword } from "../../../shared/utils/password";
 import { OWNER_ROLE_KEY } from "../../access/catalog/roles.catalog";
 import { RoleService } from "../../access/services/role.service";
@@ -45,7 +46,12 @@ export class OnboardingService {
   async createBusiness(input: CreateBusinessInput): Promise<CreatedBusiness> {
     const email = input.ownerEmail.trim().toLowerCase();
     if (await this.users.existsByEmail(email)) throw AppError.conflict("A user with this email already exists");
-    const passwordHash = await hashPassword(input.ownerPassword);
+    let passwordHash = FIREBASE_MANAGED_PASSWORD;
+    if (FirebaseAuthService.Instance.isConfigured) {
+      await FirebaseAuthService.Instance.upsertUserPassword(email, input.ownerPassword, input.ownerName);
+    } else {
+      passwordHash = await hashPassword(input.ownerPassword);
+    }
 
     return inTransaction(async (tx) => {
       const org = await this.organizations.createOrganization({ name: input.businessName, phone: input.phone ?? null, address: input.address ?? null }, tx);

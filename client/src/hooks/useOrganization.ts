@@ -179,6 +179,25 @@ export function useDeleteUser() {
   })
 }
 
+export function useResetUserPassword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      password,
+      mustChangePassword = true,
+    }: {
+      id: string
+      password: string
+      mustChangePassword?: boolean
+    }) => {
+      const res = await OrganizationEndpoints.resetUserPassword(id, { password, mustChangePassword })
+      if (!res.success) throw new ApiError(res.message, res.statusCode, res.errors)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: [USERS_KEY] }),
+  })
+}
+
 export function useAuditLogs(params: Record<string, unknown> = {}, enabled = true) {
   return useQuery({
     queryKey: [AUDIT_KEY, params],

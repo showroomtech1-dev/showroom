@@ -7,8 +7,10 @@ import { AuthController } from "../controllers/auth.controller";
 import {
   changePasswordSchema,
   forgotPasswordSchema,
+  googleAuthSchema,
   loginSchema,
   refreshSchema,
+  registerSchema,
   resetPasswordWithCodeSchema,
   updateProfileSchema,
 } from "../validators/auth.schema";
@@ -16,6 +18,8 @@ import {
 const router = Router();
 
 router.post("/login", publicRoute("sign-in"), authRateLimiter, validate(loginSchema), AuthController.login);
+router.post("/register", publicRoute("register new business and owner"), authRateLimiter, validate(registerSchema), AuthController.register);
+router.post("/google", publicRoute("sign in or register with Google"), authRateLimiter, validate(googleAuthSchema), AuthController.google);
 router.post("/refresh", publicRoute("token refresh"), authRateLimiter, validate(refreshSchema), AuthController.refresh);
 router.post("/logout", publicRoute("revoke refresh token"), validate(refreshSchema), AuthController.logout);
 router.post("/forgot-password", publicRoute("request a password reset code by email"), authRateLimiter, validate(forgotPasswordSchema), AuthController.forgotPassword);

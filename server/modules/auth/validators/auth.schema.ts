@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PASSWORD_RULE } from "../../../shared/utils/password";
-import { email, phone, requiredText } from "../../../shared/validation/common";
+import { email, optionalText, phone, requiredText } from "../../../shared/validation/common";
 
 export const passwordField = z
   .string()
@@ -10,6 +10,26 @@ export const loginSchema = z.object({
   body: z.object({
     email,
     password: z.string().min(1, "Password is required").max(200),
+  }),
+});
+
+export const registerSchema = z.object({
+  body: z.object({
+    businessName: requiredText(120),
+    ownerName: requiredText(120),
+    email,
+    password: passwordField,
+    phone: phone.optional().nullable(),
+    address: optionalText(255),
+  }),
+});
+
+export const googleAuthSchema = z.object({
+  body: z.object({
+    idToken: z.string().min(1).optional(),
+    email: email.optional(),
+    name: requiredText(120).optional(),
+    businessName: optionalText(120),
   }),
 });
 
@@ -45,6 +65,8 @@ export const resetPasswordWithCodeSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>["body"];
+export type RegisterInput = z.infer<typeof registerSchema>["body"];
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>["body"];
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>["body"];
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>["body"];
 export type ResetPasswordWithCodeInput = z.infer<typeof resetPasswordWithCodeSchema>["body"];

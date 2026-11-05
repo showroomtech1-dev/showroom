@@ -67,9 +67,36 @@ export interface LoginPayload {
   password: string
 }
 
+export interface RegisterPayload {
+  businessName: string
+  ownerName: string
+  email: string
+  password: string
+  phone?: string
+  address?: string
+}
+
+export interface GoogleSignInPayload {
+  idToken?: string
+  email?: string
+  name?: string
+  businessName?: string
+}
+
 export interface ChangePasswordPayload {
   currentPassword: string
   newPassword: string
+}
+
+export interface ResetPasswordWithCodePayload {
+  email: string
+  code: string
+  newPassword: string
+}
+
+export interface ForgotPasswordResult {
+  message: string
+  devCode?: string
 }
 
 export interface UpdateProfilePayload {

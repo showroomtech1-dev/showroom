@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Download, Eye, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react"
+import { Download, Eye, KeyRound, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -8,6 +8,7 @@ import {
   useDeleteRole,
   useDeleteUser,
   usePermissionsCatalog,
+  useResetUserPassword,
   useRestoreTrash,
   useRoles,
   useSaveRole,
@@ -16,13 +17,17 @@ import {
   useUsers,
 } from "@/hooks/useOrganization"
 import { OrganizationEndpoints } from "@/endpoints/organization.endpoints"
+import { AuthEndpoints } from "@/endpoints/auth.endpoints"
+import { tokenStorage } from "@/lib/storage"
+import { changePasswordFormSchema } from "@/lib/validation"
+import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal"
 import { formatDateTime } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { StatusBadge } from "@/components/shared/StatusBadge"
-import type { Role } from "@/types/organization.types"
+import type { Role, UserRecord } from "@/types/organization.types"
 
 export function UsersTab() {
   const { can } = useAuth()
@@ -31,6 +36,7 @@ export function UsersTab() {
   const branchesQuery = useBranches()
   const saveUser = useSaveUser()
   const deleteUser = useDeleteUser()
+  const resetUserPassword = useResetUserPassword()
 
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
@@ -38,6 +44,29 @@ export function UsersTab() {
   const [password, setPassword] = useState("")
   const [roleId, setRoleId] = useState("")
   const [branchId, setBranchId] = useState("")
+
+  const [resetTarget, setResetTarget] = useState<UserRecord | null>(null)
+  const [newResetPassword, setNewResetPassword] = useState("")
+  const [mustChangeOnLogin, setMustChangeOnLogin] = useState(true)
+
+  const handleResetPassword = async () => {
+    if (!resetTarget) return
+    if (newResetPassword.length < 8 || !/(?=.*[A-Za-z])(?=.*\d)/.test(newResetPassword)) {
+      return toast.error("Password must be at least 8 characters with a letter and a number")
+    }
+    try {
+      await resetUserPassword.mutateAsync({
+        id: resetTarget.id,
+        password: newResetPassword,
+        mustChangePassword: mustChangeOnLogin,
+      })
+      toast.success(`Password reset in Firebase for ${resetTarget.name}`)
+      setResetTarget(null)
+      setNewResetPassword("")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reset password")
+    }
+  }
 
   const handleCreateUser = async () => {
     if (!name.trim() || !email.trim() || !password || !roleId) {
@@ -94,10 +123,27 @@ export function UsersTab() {
                 <td className="px-4 py-3 text-slate-500">{u.branchName || "All Branches"}</td>
                 <td className="px-4 py-3"><StatusBadge status={u.isActive ? "active" : "suspended"} /></td>
                 <td className="px-4 py-3 text-right">
-                  {can("user.manage") && u.roleKey !== "owner" && (
-                    <Button variant="ghost" size="icon" onClick={() => deleteUser.mutate(u.id)} className="text-rose-600">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  {can("user.manage") && (
+                    <div className="inline-flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setResetTarget(u)
+                          setNewResetPassword("")
+                          setMustChangeOnLogin(true)
+                        }}
+                        data-cy={`reset-user-pwd-${u.id}`}
+                        className="h-7 px-2 text-[11px]"
+                      >
+                        <KeyRound className="h-3 w-3" /> Reset Password
+                      </Button>
+                      {u.roleKey !== "owner" && (
+                        <Button variant="ghost" size="icon" onClick={() => deleteUser.mutate(u.id)} className="text-rose-600">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>
@@ -105,6 +151,46 @@ export function UsersTab() {
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={Boolean(resetTarget)}
+        onClose={() => setResetTarget(null)}
+        title={`Reset Password — ${resetTarget?.name ?? ""}`}
+        description={`Set a new Firebase Authentication password for ${resetTarget?.email ?? ""}.`}
+      >
+        <div className="space-y-3">
+          <Input
+            label="New Password *"
+            type="password"
+            value={newResetPassword}
+            onChange={(e) => setNewResetPassword(e.target.value)}
+            placeholder="At least 8 characters with letter & number"
+            data-cy="admin-reset-pwd-input"
+          />
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={mustChangeOnLogin}
+              onChange={(e) => setMustChangeOnLogin(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Require staff member to change password on next sign-in
+          </label>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setResetTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleResetPassword}
+              disabled={resetUserPassword.isPending}
+              data-cy="admin-reset-pwd-submit"
+            >
+              {resetUserPassword.isPending ? "Saving to Firebase..." : "Reset Password"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog open={open} onClose={() => setOpen(false)} title="Create Staff User Login">
         <div className="space-y-3">
@@ -321,6 +407,107 @@ export function AuditAndTrashTab() {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+export function SecurityPasswordTab() {
+  const { user, refreshSession } = useAuth()
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [changingPwd, setChangingPwd] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const parsed = changePasswordFormSchema.safeParse({ currentPassword, newPassword })
+    if (!parsed.success) {
+      const f = parsed.error.flatten().fieldErrors
+      toast.error(f.newPassword?.[0] || f.currentPassword?.[0] || "Check password fields")
+      return
+    }
+    setChangingPwd(true)
+    try {
+      const res = await AuthEndpoints.changePassword(parsed.data)
+      if (res.success && res.data) {
+        tokenStorage.set(res.data.accessToken, res.data.refreshToken)
+        await refreshSession()
+        setCurrentPassword("")
+        setNewPassword("")
+        toast.success("Password updated in Firebase Authentication")
+      } else {
+        toast.error(res.message)
+      }
+    } finally {
+      setChangingPwd(false)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12" data-cy="settings-security-tab">
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-6">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            Change My Password
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Passwords are stored securely in Firebase Authentication and are never saved in the database.
+          </p>
+        </div>
+
+        <form onSubmit={handleChangePassword} className="space-y-3">
+          <Input
+            label="Current Password"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Enter current password"
+            data-cy="settings-pwd-current"
+          />
+          <Input
+            label="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="At least 8 chars with letter & number"
+            data-cy="settings-pwd-new"
+          />
+          <Button type="submit" disabled={changingPwd} data-cy="settings-pwd-submit">
+            <KeyRound className="h-4 w-4" />
+            {changingPwd ? "Updating in Firebase..." : "Update Password"}
+          </Button>
+        </form>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-6 flex flex-col justify-between">
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            Forgot Current Password / Reset via Email Code
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            If you signed in with Google or don't remember your current password, request a 6-digit verification code to{" "}
+            <strong className="text-slate-700 dark:text-slate-200">{user?.email}</strong> to set a new Firebase password.
+          </p>
+        </div>
+
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setForgotOpen(true)}
+            data-cy="settings-forgot-pwd-btn"
+          >
+            <KeyRound className="h-4 w-4" />
+            Reset Password with 6-Digit Email Code
+          </Button>
+        </div>
+      </div>
+
+      <ForgotPasswordModal
+        open={forgotOpen}
+        initialEmail={user?.email ?? ""}
+        onClose={() => setForgotOpen(false)}
+      />
     </div>
   )
 }

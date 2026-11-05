@@ -14,9 +14,9 @@ import {
 import { fromBps, fromKobo, toBps, toKobo } from "@/lib/money"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { AuditAndTrashTab, RolesTab, UsersTab } from "@/components/settings/UsersAndRolesTabs"
+import { AuditAndTrashTab, RolesTab, SecurityPasswordTab, UsersTab } from "@/components/settings/UsersAndRolesTabs"
 
-type SettingsTab = "general" | "branches" | "users" | "roles" | "audit"
+type SettingsTab = "general" | "branches" | "users" | "roles" | "security" | "audit"
 
 export default function SettingsPage() {
   const { can } = useAuth()
@@ -97,6 +97,7 @@ export default function SettingsPage() {
             ["branches", "Showroom Branches"],
             ["users", "User Accounts"],
             ["roles", "Roles & Permissions"],
+            ["security", "Password & Security"],
             ["audit", "Audit, Trash & Backup"],
           ] as const
         ).map(([k, label]) => (
@@ -218,6 +219,7 @@ export default function SettingsPage() {
 
       {tab === "users" && <UsersTab />}
       {tab === "roles" && <RolesTab />}
+      {tab === "security" && <SecurityPasswordTab />}
       {tab === "audit" && <AuditAndTrashTab />}
     </div>
   )

@@ -4,6 +4,7 @@ import { PermissionCache } from "../../../shared/access/permissionCache";
 import { readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
 import { domainEvents } from "../../../shared/events/domainEvents";
+import { FIREBASE_MANAGED_PASSWORD, FirebaseAuthService } from "../../../shared/firebase/firebaseAuth.service";
 import type { Actor } from "../../../shared/types/actor";
 import { hashPassword } from "../../../shared/utils/password";
 import { RoleService } from "../../access/services/role.service";
@@ -45,7 +46,12 @@ export class UserService {
     if (await this.repo.existsByEmail(data.email)) throw AppError.conflict("A user with this email already exists");
     await this.roles.get(actor, data.roleId);
     if (data.branchId) await this.branches.get(actor, data.branchId);
-    const passwordHash = await hashPassword(data.password);
+    let passwordHash = FIREBASE_MANAGED_PASSWORD;
+    if (FirebaseAuthService.Instance.isConfigured) {
+      await FirebaseAuthService.Instance.upsertUserPassword(data.email, data.password, data.name);
+    } else {
+      passwordHash = await hashPassword(data.password);
+    }
     const id = await inTransaction(async (tx) => {
       const userId = await this.repo.create(
         {
@@ -88,7 +94,12 @@ export class UserService {
   async resetPassword(actor: Actor, id: string, data: ResetPasswordInput): Promise<void> {
     assertPermission(actor, "user.manage");
     const user = await this.get(actor, id);
-    const passwordHash = await hashPassword(data.password);
+    let passwordHash = FIREBASE_MANAGED_PASSWORD;
+    if (FirebaseAuthService.Instance.isConfigured) {
+      await FirebaseAuthService.Instance.upsertUserPassword(user.email, data.password, user.name);
+    } else {
+      passwordHash = await hashPassword(data.password);
+    }
     await inTransaction(async (tx) => {
       await this.repo.update(actor.organizationId, id, { passwordHash, mustChangePassword: data.mustChangePassword }, tx);
       await this.tokens.revokeAllForUser(id, tx);

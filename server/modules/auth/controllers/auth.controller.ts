@@ -5,8 +5,10 @@ import { AuthService } from "../services/auth.service";
 import {
   changePasswordSchema,
   forgotPasswordSchema,
+  googleAuthSchema,
   loginSchema,
   refreshSchema,
+  registerSchema,
   resetPasswordWithCodeSchema,
   updateProfileSchema,
 } from "../validators/auth.schema";
@@ -15,6 +17,14 @@ const client = (req: Request): ClientContext => ({ userAgent: req.get("user-agen
 
 export class AuthController {
   static login = handle("Signed in", (req) => AuthService.Instance.login(input(req, loginSchema).body, client(req)));
+
+  static register = handle("Account created", (req) =>
+    AuthService.Instance.register(input(req, registerSchema).body, client(req))
+  );
+
+  static google = handle("Signed in with Google", (req) =>
+    AuthService.Instance.googleSignIn(input(req, googleAuthSchema).body, client(req))
+  );
 
   static refresh = handle("Session refreshed", (req) =>
     AuthService.Instance.refresh(input(req, refreshSchema).body.refreshToken, client(req))

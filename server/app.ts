@@ -41,7 +41,14 @@ export function createApp(): Application {
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(
     cors({
-      origin: (origin, cb) => cb(null, !origin || env.corsOrigins.includes(origin) || !env.isProduction),
+      origin: (origin, cb) =>
+        cb(
+          null,
+          !origin ||
+            env.corsOrigins.includes(origin) ||
+            origin.endsWith(".vercel.app") ||
+            !env.isProduction
+        ),
       credentials: true,
       exposedHeaders: ["Content-Disposition"],
     })

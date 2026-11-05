@@ -1,6 +1,6 @@
 // Backup export and soft-delete restore. Table and column names come only from the fixed maps
 // below (never from user input); all values are bound parameters.
-import { db, type Tx } from "../../../infrastructure/database/transaction";
+import { db, updateReturning, type Tx } from "../../../infrastructure/database/transaction";
 
 /** Tables exported in a backup. Child tables are reached through their parent's organisation. */
 const BACKUP_TABLES: Record<string, string> = {
@@ -99,7 +99,8 @@ export class SystemRepository {
         [id, organizationId]
       );
     }
-    const rows: Array<{ label: string }> = await tx.query(
+    const rows = await updateReturning<{ label: string }>(
+      tx,
       `UPDATE ${table} SET deleted_at = NULL WHERE organization_id = $1 AND id = $2 AND deleted_at IS NOT NULL
        RETURNING ${label} AS label`,
       [organizationId, id]

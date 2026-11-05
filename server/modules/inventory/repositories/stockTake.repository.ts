@@ -1,5 +1,5 @@
 import { likePattern, SqlParams } from "../../../infrastructure/database/sql";
-import { db, type Tx } from "../../../infrastructure/database/transaction";
+import { db, updateReturning, type Tx } from "../../../infrastructure/database/transaction";
 import { fromWindowedRows, getOffset, type PagedRows } from "../../../shared/pagination/paginate";
 import type { StockTakeDTO, StockTakeItemDTO } from "../dto/inventory.dto";
 import { StockTakeEntity, type StockTake } from "../entities/stockTake.entity";
@@ -90,7 +90,8 @@ export class StockTakeRepository {
   async recordCounts(stockTakeId: string, counts: Array<{ variantId: string; countedQuantity: number }>, tx: Tx): Promise<number> {
     let matched = 0;
     for (const c of counts) {
-      const rows: Array<{ id: string }> = await tx.query(
+      const rows = await updateReturning<{ id: string }>(
+        tx,
         `UPDATE stock_take_items SET counted_quantity = $3, variance = $3 - system_quantity, counted_at = now()
          WHERE stock_take_id = $1 AND variant_id = $2 RETURNING id`,
         [stockTakeId, c.variantId, c.countedQuantity]

@@ -247,7 +247,8 @@ async function main(): Promise<void> {
         const result = await SaleService.Instance.create(seller, {
           branchId,
           customerId,
-          soldAt: at(date, between(9, 18), between(0, 59)),
+          // Earlier days get a time during opening hours; today's sales happen "now" (never in the future).
+          soldAt: offset < 0 ? at(date, between(9, 18), between(0, 59)) : undefined,
           items: unique,
           discount: discounted ? { type: "percent", value: 5 } : undefined,
           payments: paid > 0 ? [{ method, amount: paid }] : [],

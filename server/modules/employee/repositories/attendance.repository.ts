@@ -1,5 +1,5 @@
 import { SqlParams } from "../../../infrastructure/database/sql";
-import { db, type Tx } from "../../../infrastructure/database/transaction";
+import { db, updateReturning, type Tx } from "../../../infrastructure/database/transaction";
 import { fromWindowedRows, getOffset, type PagedRows } from "../../../shared/pagination/paginate";
 import { num } from "../../../shared/utils/money";
 import type { AttendanceDTO, AttendanceSummaryDTO, LeaveRequestDTO } from "../dto/employee.dto";
@@ -65,7 +65,8 @@ export class AttendanceRepository {
   }
 
   async clockOut(employeeId: string, date: string, at: Date): Promise<boolean> {
-    const rows: Array<{ id: string }> = await db().query(
+    const rows = await updateReturning<{ id: string }>(
+      db(),
       `UPDATE attendance SET clock_out_at = $3, updated_at = now() WHERE employee_id = $1 AND attendance_date = $2 AND clock_out_at IS NULL RETURNING id`,
       [employeeId, date, at]
     );

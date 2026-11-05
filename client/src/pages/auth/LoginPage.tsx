@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowRight, Lock, Mail, Moon, ShieldCheck, Sparkles, Store, Sun } from "lucide-react"
+import { ArrowRight, Mail, Moon, ShieldCheck, Sparkles, Store, Sun } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -250,7 +250,6 @@ export default function LoginPage() {
                     className="h-9 text-xs"
                     data-cy="login-password"
                   />
-                  <Lock className="pointer-events-none absolute right-3 top-7.5 h-3.5 w-3.5 text-slate-400" />
                 </div>
 
                 <Button type="submit" className="w-full h-10" disabled={submitting} data-cy="login-submit">

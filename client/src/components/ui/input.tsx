@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { HelpCircle } from "lucide-react"
+import { Eye, EyeOff, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DatePickerField } from "@/components/ui/date-picker"
 
@@ -75,6 +75,9 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, tooltip, id, type, value, onChange, disabled, ...props }, ref) => {
     const dataCy = (props as Record<string, unknown>)["data-cy"] as string | undefined
+    // Password fields get a show/hide eye button.
+    const isPassword = type === "password"
+    const [reveal, setReveal] = useState(false)
 
     return (
       <div className="w-full space-y-1.5">
@@ -105,20 +108,37 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             }}
           />
         ) : (
+          <div className="relative">
           <input
             id={id}
             ref={ref}
-            type={type}
+            type={isPassword && reveal ? "text" : type}
             value={value}
             onChange={onChange}
             disabled={disabled}
             className={cn(
               "flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500",
               error && "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20",
+              isPassword && "pr-10",
               className
             )}
             {...props}
           />
+          {isPassword && (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={reveal ? "Hide password" : "Show password"}
+              title={reveal ? "Hide password" : "Show password"}
+              disabled={disabled}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setReveal((r) => !r)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:text-slate-700 focus:outline-none dark:hover:text-slate-200"
+            >
+              {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          )}
+          </div>
         )}
         {error ? (
           <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>

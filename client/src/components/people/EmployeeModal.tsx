@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -9,8 +9,10 @@ import {
   useSaveEmployee,
 } from "@/hooks/useEmployees"
 import { useAccounts } from "@/hooks/useFinance"
+import { useUserLookup } from "@/hooks/useOrganization"
 import { fromBps, fromKobo, toBps, toKobo } from "@/lib/money"
 import { todayIso } from "@/lib/utils"
+import { NIGERIAN_BANKS } from "@/lib/banks"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +29,9 @@ interface EmployeeEditorModalProps {
 export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorModalProps) {
   const { activeBranchId } = useAuth()
   const saveEmployee = useSaveEmployee()
+  const userLookup = useUserLookup(open)
+  const employeesQuery = useEmployees({ limit: 100 })
+  const [userId, setUserId] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
@@ -43,7 +48,9 @@ export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorM
   const [guarantorPhone, setGuarantorPhone] = useState("")
 
   useEffect(() => {
+    autofilled.current = {}
     if (employee) {
+      setUserId(employee.userId ?? "")
       setFirstName(employee.firstName)
       setLastName(employee.lastName)
       setPhone(employee.phone ?? "")
@@ -59,6 +66,7 @@ export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorM
       setGuarantorName(employee.guarantorName ?? "")
       setGuarantorPhone(employee.guarantorPhone ?? "")
     } else {
+      setUserId("")
       setFirstName("")
       setLastName("")
       setPhone("")
@@ -76,13 +84,40 @@ export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorM
     }
   }, [employee, open])
 
+  // Remembers what we filled in from a login, so picking a different login replaces it
+  // but never overwrites something the user typed themselves.
+  const autofilled = useRef<Record<string, string>>({})
+
+  const handleLoginChange = (id: string) => {
+    setUserId(id)
+    const u = (userLookup.data ?? []).find((x) => x.id === id)
+    if (!u) return
+    const parts = u.name.trim().split(/\s+/)
+    const fills: Array<[string, string, string, (v: string) => void]> = [
+      ["firstName", firstName, parts[0] ?? "", setFirstName],
+      ["lastName", lastName, parts.slice(1).join(" "), setLastName],
+      ["email", email, u.email ?? "", setEmail],
+      ["phone", phone, u.phone ?? "", setPhone],
+      ["jobTitle", jobTitle, u.roleName, setJobTitle],
+    ]
+    for (const [key, current, next, set] of fills) {
+      if (!next) continue
+      if (current === "" || current === autofilled.current[key]) {
+        set(next)
+        autofilled.current[key] = next
+      }
+    }
+  }
+
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim()) return toast.error("First and last name are required")
+    if (bankAccountNumber && bankAccountNumber.length !== 10) return toast.error("Account number must be 10 digits")
     try {
       await saveEmployee.mutateAsync({
         id: employee?.id,
         payload: {
           branchId: activeBranchId || undefined,
+          userId: userId || null,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           phone: phone.trim() || null,
@@ -108,38 +143,82 @@ export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorM
 
   return (
     <Dialog open={open} onClose={onClose} title={employee ? "Edit Employee" : "New Staff Member"} maxWidth="max-w-2xl">
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          <Input label="First Name *" value={firstName} onChange={(e) => setFirstName(e.target.value)} data-cy="emp-first-name" />
-          <Input label="Last Name *" value={lastName} onChange={(e) => setLastName(e.target.value)} data-cy="emp-last-name" />
-          <Input label="Job Title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+      <div className="space-y-4 py-1">
+        <Select
+          label="Linked Login (optional)"
+          value={userId}
+          onChange={(e) => handleLoginChange(e.target.value)}
+          options={(userLookup.data ?? [])
+            // Hide logins already linked to a different employee (the server refuses those anyway).
+            .filter((u) => !(employeesQuery.data?.data ?? []).some((e) => e.userId === u.id && e.id !== employee?.id))
+            .map((u) => ({ value: u.id, label: `${u.name} — ${u.roleName}` }))}
+          placeholder="Not linked to a login"
+          hint="Picking a login fills in the name, email, phone and job title below. It also lets this person clock in from their Profile page."
+        />
+
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Personal details</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input label="First Name *" value={firstName} onChange={(e) => setFirstName(e.target.value)} data-cy="emp-first-name" />
+            <Input label="Last Name *" value={lastName} onChange={(e) => setLastName(e.target.value)} data-cy="emp-last-name" />
+            <PhoneInput label="Phone" value={phone} onChange={setPhone} />
+            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input label="Job Title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          <PhoneInput label="Phone" value={phone} onChange={setPhone} />
-          <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Pay</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Select
+              label="Pay Frequency"
+              value={payFrequency}
+              onChange={(e) => setPayFrequency(e.target.value as "monthly" | "weekly")}
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "weekly", label: "Weekly" },
+              ]}
+            />
+            <Input label="Base Salary (₦)" type="number" value={salaryNaira} onChange={(e) => setSalaryNaira(e.target.value)} />
+            <Input label="Sales Commission (%)" type="number" step="0.1" value={commPercent} onChange={(e) => setCommPercent(e.target.value)} />
+          </div>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
-          <Select
-            label="Pay Frequency"
-            value={payFrequency}
-            onChange={(e) => setPayFrequency(e.target.value as "monthly" | "weekly")}
-            options={[
-              { value: "monthly", label: "Monthly" },
-              { value: "weekly", label: "Weekly" },
-            ]}
+
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Bank details (for salary payments)</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              label="Bank Name"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              options={(bankName && !NIGERIAN_BANKS.includes(bankName) ? [bankName, ...NIGERIAN_BANKS] : NIGERIAN_BANKS).map((b) => ({ value: b, label: b }))}
+              placeholder="Select bank"
+            />
+            <Input
+              label="Account Number"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="10-digit account number"
+              value={bankAccountNumber}
+              onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              error={bankAccountNumber && bankAccountNumber.length !== 10 ? "Account number must be 10 digits" : undefined}
+            />
+          </div>
+          <Input
+            label="Account Name"
+            placeholder="Name on the account"
+            value={bankAccountName}
+            onChange={(e) => setBankAccountName(e.target.value)}
           />
-          <Input label="Base Salary (₦)" type="number" value={salaryNaira} onChange={(e) => setSalaryNaira(e.target.value)} />
-          <Input label="Sales Commission (%)" type="number" step="0.1" value={commPercent} onChange={(e) => setCommPercent(e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
-          <Input label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-          <Input label="Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} />
-          <Input label="Account Name" value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Input label="Guarantor Name" value={guarantorName} onChange={(e) => setGuarantorName(e.target.value)} />
-          <Input label="Guarantor Phone" value={guarantorPhone} onChange={(e) => setGuarantorPhone(e.target.value)} />
+
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Guarantor</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input label="Guarantor Name" value={guarantorName} onChange={(e) => setGuarantorName(e.target.value)} />
+            <PhoneInput label="Guarantor Phone" value={guarantorPhone} onChange={setGuarantorPhone} />
+          </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>

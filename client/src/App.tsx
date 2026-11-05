@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { DashboardLayout } from "@/components/layout/DashboardLayout"
 import { PageLoader } from "@/components/shared/PageLoader"
+import { SETTINGS_ADMIN_PERMISSIONS } from "@/components/layout/nav"
 
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"))
 const PublicReceiptPage = lazy(() => import("@/pages/public/PublicReceiptPage"))
@@ -153,7 +154,7 @@ export default function App() {
           <Route
             path="settings"
             element={
-              <ProtectedRoute anyOf={["settings.manage", "branch.manage", "user.manage", "role.manage", "audit.read", "trash.manage", "backup.manage"]}>
+              <ProtectedRoute anyOf={SETTINGS_ADMIN_PERMISSIONS}>
                 <SettingsPage />
               </ProtectedRoute>
             }

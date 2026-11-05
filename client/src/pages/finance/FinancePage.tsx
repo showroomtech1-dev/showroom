@@ -17,6 +17,8 @@ import { formatDate, startOfMonthIso, todayIso } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { TableStatus } from "@/components/shared/TableStatus"
+import { NIGERIAN_BANKS } from "@/lib/banks"
+import { CashFlowBreakdown, PnlBreakdown } from "@/components/finance/StatementBreakdown"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { StatCard } from "@/components/shared/StatCard"
@@ -56,20 +58,24 @@ export default function FinancePage() {
 
   const handleCreateAccount = async () => {
     if (!acctName.trim()) return toast.error("Enter account name")
+    if (acctType !== "cash" && accountNumber && accountNumber.length !== 10) return toast.error("Account number must be 10 digits")
     try {
       await saveAccount.mutateAsync({
         payload: {
           branchId: activeBranchId || undefined,
           name: acctName.trim(),
           type: acctType,
-          bankName: bankName.trim() || undefined,
-          accountNumber: accountNumber.trim() || undefined,
+          bankName: acctType !== "cash" ? bankName || undefined : undefined,
+          accountNumber: acctType !== "cash" ? accountNumber || undefined : undefined,
           openingBalance: toKobo(openingNaira),
         },
       })
       toast.success("Account created")
       setAcctOpen(false)
       setAcctName("")
+      setBankName("")
+      setAccountNumber("")
+      setOpeningNaira("0")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create account")
     }
@@ -205,19 +211,29 @@ export default function FinancePage() {
           </div>
 
           {tab === "pnl" && pnlQuery.data && (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1">
               <StatCard label="Net Revenue" value={formatMoney(pnlQuery.data.revenue.total)} subtitle={`${pnlQuery.data.revenue.salesCount} sales`} />
               <StatCard label="Cost of Goods Sold" value={formatMoney(pnlQuery.data.costOfGoodsSold)} />
               <StatCard label="Gross Profit" value={formatMoney(pnlQuery.data.grossProfit)} subtitle={`Margin: ${formatBps(pnlQuery.data.grossMarginBps)}`} tone="emerald" />
               <StatCard label="Net Profit" value={formatMoney(pnlQuery.data.netProfit)} subtitle={`Expenses: ${formatMoney(pnlQuery.data.expenses.total)}`} tone={pnlQuery.data.netProfit >= 0 ? "emerald" : "rose"} />
             </div>
+            <div className="lg:col-span-7">
+              <PnlBreakdown data={pnlQuery.data} />
+            </div>
+            </div>
           )}
 
           {tab === "cashflow" && cfQuery.data && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-1">
               <StatCard label="Total Cash Inflows" value={formatMoney(cfQuery.data.totalIn)} tone="emerald" />
               <StatCard label="Total Cash Outflows" value={formatMoney(cfQuery.data.totalOut)} tone="rose" />
               <StatCard label="Net Cash Flow" value={formatMoney(cfQuery.data.netCashFlow)} />
+            </div>
+            <div className="lg:col-span-7">
+              <CashFlowBreakdown data={cfQuery.data} />
+            </div>
             </div>
           )}
         </div>
@@ -227,10 +243,26 @@ export default function FinancePage() {
         <div className="space-y-3">
           <Input label="Account Name *" value={acctName} onChange={(e) => setAcctName(e.target.value)} data-cy="account-name" />
           <Select label="Type" value={acctType} onChange={(e) => setAcctType(e.target.value as typeof acctType)} options={[{ value: "bank", label: "Bank Account" }, { value: "cash", label: "Cash Drawer" }, { value: "pos", label: "POS Settlement" }]} />
-          <div className="grid grid-cols-2 gap-2.5">
-            <Input label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-            <Input label="Account Number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
-          </div>
+          {acctType !== "cash" && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Select
+                label="Bank Name"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                options={NIGERIAN_BANKS.map((b) => ({ value: b, label: b }))}
+                placeholder="Select bank"
+              />
+              <Input
+                label="Account Number"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit account number"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value.replace(/D/g, "").slice(0, 10))}
+                error={accountNumber && accountNumber.length !== 10 ? "Account number must be 10 digits" : undefined}
+              />
+            </div>
+          )}
           <Input label="Opening Balance (₦)" type="number" value={openingNaira} onChange={(e) => setOpeningNaira(e.target.value)} />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAcctOpen(false)}>Cancel</Button>

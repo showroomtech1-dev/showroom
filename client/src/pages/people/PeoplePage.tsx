@@ -16,6 +16,7 @@ import { formatBps, formatMoney } from "@/lib/money"
 import { formatDate, todayIso } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { TableStatus } from "@/components/shared/TableStatus"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { Pagination } from "@/components/shared/Pagination"
@@ -25,7 +26,17 @@ import type { Employee, StaffLoan } from "@/types/employee.types"
 
 export default function PeoplePage() {
   const { can, activeBranchId } = useAuth()
-  const [tab, setTab] = useState<"employees" | "attendance" | "leave" | "loans">("employees")
+  const [requestedTab, setTab] = useState<"employees" | "attendance" | "leave" | "loans">("employees")
+
+  // Each tab calls an API with its own permission. Offer only the tabs this user may open (others would 403).
+  const tabAccess = {
+    employees: can("employee.read"),
+    attendance: can("employee.read") || can("attendance.manage"),
+    leave: can("leave.request") || can("leave.manage") || can("employee.read"),
+    loans: can("loan.manage") || can("payroll.read"),
+  } as const
+  const visibleTabs = ([["employees", "Staff Directory"], ["attendance", "Attendance Register"], ["leave", "Leave Requests"], ["loans", "Loans & Advances"]] as const).filter(([k]) => tabAccess[k])
+  const tab = visibleTabs.some(([k]) => k === requestedTab) ? requestedTab : (visibleTabs[0]?.[0] ?? null)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const [attDate, setAttDate] = useState(todayIso())
@@ -43,13 +54,13 @@ export default function PeoplePage() {
     limit: 20,
     search: debouncedSearch || undefined,
     branchId: activeBranchId || undefined,
-  })
+  }, tab === "employees" || tab === "attendance")
   const attendanceQuery = useAttendance(
     { from: attDate, to: attDate, branchId: activeBranchId || undefined },
     tab === "attendance"
   )
-  const leaveQuery = useLeaveRequests({ page, limit: 20 })
-  const loansQuery = useLoans({ page, limit: 20 })
+  const leaveQuery = useLeaveRequests({ page, limit: 20 }, tab === "leave")
+  const loansQuery = useLoans({ page, limit: 20 }, tab === "loans")
   const markAttendance = useMarkAttendance()
   const reviewLeave = useReviewLeave()
   const deleteEmployee = useDeleteEmployee()
@@ -83,7 +94,7 @@ export default function PeoplePage() {
       </div>
 
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-        {([["employees", "Staff Directory"], ["attendance", "Attendance Register"], ["leave", "Leave Requests"], ["loans", "Loans & Advances"]] as const).map(([k, label]) => (
+        {visibleTabs.map(([k, label]) => (
           <button
             key={k}
             onClick={() => { setTab(k); setPage(1) }}
@@ -95,6 +106,13 @@ export default function PeoplePage() {
           </button>
         ))}
       </div>
+
+      {tab === null && (
+        <EmptyState
+          title="Nothing to manage here"
+          message="Your role doesn't include staff records. You can clock in and out, and see your own details, from your Profile page."
+        />
+      )}
 
       {tab === "employees" && (
         <div className="space-y-3">

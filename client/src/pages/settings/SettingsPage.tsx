@@ -24,7 +24,22 @@ type SettingsTab = "general" | "email" | "branches" | "users" | "roles" | "secur
 
 export default function SettingsPage() {
   const { can, refreshSession } = useAuth()
-  const [tab, setTab] = useState<SettingsTab>("general")
+  const [requestedTab, setTab] = useState<SettingsTab>("general")
+
+  // Each tab is only offered to users who hold its permission (the server enforces this too).
+  const visibleTabs = (
+    [
+      ["general", "Business & Tax", can("settings.manage")],
+      ["email", "Email & Alerts", can("settings.manage")],
+      ["branches", "Showroom Branches", can("branch.manage")],
+      ["users", "User Accounts", can("user.manage")],
+      ["roles", "Roles & Permissions", can("role.manage")],
+      ["security", "Password & Security", true],
+      ["audit", "Audit, Trash & Backup", can("audit.read") || can("trash.manage") || can("backup.manage")],
+    ] as const
+  ).filter(([, , allowed]) => allowed)
+  // If the chosen tab isn't allowed for this user, fall back to the first one they can see.
+  const tab: SettingsTab = visibleTabs.some(([k]) => k === requestedTab) ? requestedTab : visibleTabs[0][0]
   const settingsQuery = useSettings()
   const updateBusiness = useUpdateBusiness()
   const updateSettings = useUpdateSettings()
@@ -111,17 +126,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-        {(
-          [
-            ["general", "Business & Tax"],
-            ["email", "Email & Alerts"],
-            ["branches", "Showroom Branches"],
-            ["users", "User Accounts"],
-            ["roles", "Roles & Permissions"],
-            ["security", "Password & Security"],
-            ["audit", "Audit, Trash & Backup"],
-          ] as const
-        ).map(([k, label]) => (
+        {visibleTabs.map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}

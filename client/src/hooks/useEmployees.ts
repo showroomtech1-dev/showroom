@@ -162,8 +162,9 @@ export function useMarkAttendance() {
   })
 }
 
-export function useLeaveRequests(params: Record<string, unknown> = {}) {
+export function useLeaveRequests(params: Record<string, unknown> = {}, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [LEAVE_KEY, params],
     queryFn: async () => {
       const res = await EmployeeEndpoints.listLeave(params)
@@ -197,8 +198,9 @@ export function useReviewLeave() {
   })
 }
 
-export function useLoans(params: Record<string, unknown> = {}) {
+export function useLoans(params: Record<string, unknown> = {}, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [LOANS_KEY, params],
     queryFn: async () => {
       const res = await EmployeeEndpoints.listLoans(params)

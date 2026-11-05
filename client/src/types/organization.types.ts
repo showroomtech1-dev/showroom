@@ -48,6 +48,8 @@ export interface UserRecord {
 export interface UserLookup {
   id: string
   name: string
+  email?: string | null
+  phone?: string | null
   roleName: string
   branchId: string | null
 }

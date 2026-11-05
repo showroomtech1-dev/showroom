@@ -1,5 +1,5 @@
 import { openPdfInNewTab, wrapCall } from "@/transport/http"
-import type { EmployeePayLedger, PayrollRun, Payslip } from "@/types/payroll.types"
+import type { EmployeePayLedger, PayrollRun, Payslip, PayslipSummary } from "@/types/payroll.types"
 
 export const PayrollEndpoints = {
   listRuns: (params?: Record<string, unknown>) =>
@@ -33,7 +33,7 @@ export const PayrollEndpoints = {
     wrapCall<PayrollRun>("POST", `/api/v1/payroll/runs/${runId}/items/${itemId}/pay`, payload),
 
   listPayslips: (params?: Record<string, unknown>) =>
-    wrapCall<Payslip[]>("GET", "/api/v1/payroll/payslips", params),
+    wrapCall<PayslipSummary[]>("GET", "/api/v1/payroll/payslips", params),
 
   getPayslip: (id: string) =>
     wrapCall<Payslip>("GET", `/api/v1/payroll/payslips/${id}`),

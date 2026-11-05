@@ -136,9 +136,9 @@ export default function PayrollPage() {
                   <tr key={ps.id}>
                     <td className="px-4 py-3 font-mono font-semibold">{ps.code}</td>
                     <td className="px-4 py-3 font-medium">{ps.employeeName}</td>
-                    <td className="px-4 py-3 text-slate-500">{ps.snapshot.period}</td>
+                    <td className="px-4 py-3 text-slate-500">{ps.period ?? "—"}</td>
                     <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                      {formatMoney(ps.snapshot.netPay)}
+                      {formatMoney(ps.netPay)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">

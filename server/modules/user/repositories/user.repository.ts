@@ -82,7 +82,7 @@ export class UserRepository {
     const where = [`u.organization_id = ${p.add(organizationId)}`, "u.deleted_at IS NULL", "u.is_active = true"];
     if (branchId) where.push(`u.branch_id = ${p.add(branchId)}`);
     return db().query(
-      `SELECT u.id, u.name, r.name AS "roleName", u.branch_id AS "branchId"
+      `SELECT u.id, u.name, u.email, u.phone, r.name AS "roleName", u.branch_id AS "branchId"
        FROM users u JOIN roles r ON r.id = u.role_id
        WHERE ${where.join(" AND ")} ORDER BY u.name LIMIT 500`,
       p.values

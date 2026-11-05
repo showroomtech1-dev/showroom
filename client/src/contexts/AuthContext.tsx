@@ -163,6 +163,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, previewRole])
 
+  // Users without `branch.all` can only ever work in their own branch. A branch id left in localStorage by
+  // another user on this browser would otherwise be sent to the API and refused (403).
+  const scopedBranchId = useMemo(() => {
+    if (!session?.user) return selectedBranchId
+    return checkCan(session.permissions, "branch.all") ? selectedBranchId : (session.user.branchId ?? "")
+  }, [session, selectedBranchId])
+
   const can = useCallback((code: string) => checkCan(activePermissions, code), [activePermissions])
   const canAny = useCallback((codes: readonly string[]) => checkCanAny(activePermissions, codes), [activePermissions])
 
@@ -177,8 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       business: session?.business ?? null,
       settings: session?.settings ?? null,
       currencySymbol: session?.settings?.currencySymbol || "₦",
-      selectedBranchId,
-      activeBranchId: selectedBranchId,
+      selectedBranchId: scopedBranchId,
+      activeBranchId: scopedBranchId,
       setSelectedBranchId,
       previewRole,
       startPreview: (role: Role) => setPreviewRole(role),
@@ -206,7 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       effectiveUser,
       session,
       activePermissions,
-      selectedBranchId,
+      scopedBranchId,
       setSelectedBranchId,
       loading,
       previewRole,

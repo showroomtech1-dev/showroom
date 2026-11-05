@@ -1,5 +1,5 @@
 import { inTransaction } from "../../../infrastructure/database/transaction";
-import { assertPermission } from "../../../shared/access/can";
+import { assertPermission, can } from "../../../shared/access/can";
 import { PermissionCache } from "../../../shared/access/permissionCache";
 import { readBranchScope } from "../../../shared/access/scope";
 import { AppError } from "../../../shared/errors/AppError";
@@ -32,7 +32,10 @@ export class UserService {
 
   /** Lightweight staff list for filters and pickers (sales by staff, commissions…). */
   async lookup(actor: Actor, branchId?: string): Promise<UserLookupDTO[]> {
-    return this.repo.lookup(actor.organizationId, readBranchScope(actor, branchId));
+    const rows = await this.repo.lookup(actor.organizationId, readBranchScope(actor, branchId));
+    // Names and roles are fine for any permitted caller; contact details only for those who manage staff or logins.
+    if (can(actor, "user.manage") || can(actor, "employee.manage")) return rows;
+    return rows.map(({ email: _email, phone: _phone, ...rest }) => rest);
   }
 
   async get(actor: Actor, id: string): Promise<UserDTO> {

@@ -30,6 +30,13 @@ export interface NavSection {
   items: NavItem[]
 }
 
+/**
+ * Who may open Settings & Access: only users with a true admin permission (owner/admin, or a custom role
+ * granted one of these). Managers have branch / audit / trash permissions by default, but those alone
+ * don't open this page.
+ */
+export const SETTINGS_ADMIN_PERMISSIONS = ["settings.manage", "user.manage", "role.manage", "backup.manage"] as const
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Overview",
@@ -142,7 +149,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Settings & Access",
         path: "/settings",
         icon: Settings,
-        anyOf: ["settings.manage", "branch.manage", "user.manage", "role.manage", "audit.read", "trash.manage", "backup.manage"],
+        anyOf: SETTINGS_ADMIN_PERMISSIONS,
       },
     ],
   },

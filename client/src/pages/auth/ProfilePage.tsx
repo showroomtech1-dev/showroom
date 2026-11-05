@@ -209,7 +209,8 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <p className="text-xs text-slate-500">
-                  Your user account is not yet linked to an employee record. Ask a manager to link your login under People → Staff.
+                  Your login isn't linked to a staff record, so you can't clock in yet. A manager can link it under
+                  People → Staff → edit your record → Linked Login. (Owners who aren't on the staff list don't need this.)
                 </p>
               )}
 

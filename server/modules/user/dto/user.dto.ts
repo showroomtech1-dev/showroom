@@ -38,6 +38,9 @@ export interface CredentialRow {
 export interface UserLookupDTO {
   id: string;
   name: string;
+  /** Contact details are only sent to users who manage staff or logins. */
+  email?: string | null;
+  phone?: string | null;
   roleName: string;
   branchId: string | null;
 }

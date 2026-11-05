@@ -63,6 +63,19 @@ export interface PayrollItem {
   payslipId: string | null
 }
 
+/** One row of the payslip list: a summary only (the full snapshot comes from getPayslip). */
+export interface PayslipSummary {
+  id: string
+  code: string
+  runId: string
+  payrollItemId: string
+  employeeId: string
+  employeeName: string
+  netPay: number
+  period: string | null
+  createdAt: string
+}
+
 export interface Payslip {
   id: string
   code: string

@@ -74,6 +74,19 @@ export function useBranches(includeInactive = false) {
   })
 }
 
+/** Light list of user logins (id, name, role) — used to link a login to an employee. */
+export function useUserLookup(enabled = true) {
+  return useQuery({
+    queryKey: [USERS_KEY, "lookup"],
+    enabled,
+    queryFn: async () => {
+      const res = await OrganizationEndpoints.lookupUsers()
+      if (!res.success) throw new ApiError(res.message, res.statusCode)
+      return res.data ?? []
+    },
+  })
+}
+
 export function useSaveBranch() {
   const qc = useQueryClient()
   return useMutation({

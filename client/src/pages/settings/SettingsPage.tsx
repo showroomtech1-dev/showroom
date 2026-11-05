@@ -20,7 +20,7 @@ import { AuditAndTrashTab, RolesTab, SecurityPasswordTab, UsersTab } from "@/com
 type SettingsTab = "general" | "branches" | "users" | "roles" | "security" | "audit"
 
 export default function SettingsPage() {
-  const { can } = useAuth()
+  const { can, refreshSession } = useAuth()
   const [tab, setTab] = useState<SettingsTab>("general")
   const settingsQuery = useSettings()
   const updateBusiness = useUpdateBusiness()
@@ -59,7 +59,7 @@ export default function SettingsPage() {
     }
   }, [settingsQuery.data])
 
-  const handleSaveGeneral = async () => {
+  const handleSaveIdentity = async () => {
     try {
       await updateBusiness.mutateAsync({
         name: bizName.trim(),
@@ -70,13 +70,25 @@ export default function SettingsPage() {
       await updateSettings.mutateAsync({
         receiptHeader: receiptHeader.trim() || null,
         receiptFooter: receiptFooter.trim() || null,
+      })
+      await refreshSession()
+      toast.success("Showroom identity updated")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save showroom identity")
+    }
+  }
+
+  const handleSaveRules = async () => {
+    try {
+      await updateSettings.mutateAsync({
         taxRateBps: toBps(taxRatePct),
         commissionRateBps: toBps(commRatePct),
         latenessDeduction: toKobo(latenessNaira),
       })
-      toast.success("Business profile and settings updated")
+      await refreshSession()
+      toast.success("Tax, commission & attendance rules updated")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save settings")
+      toast.error(err instanceof Error ? err.message : "Failed to save rules")
     }
   }
 
@@ -144,16 +156,37 @@ export default function SettingsPage() {
               <Input label="Receipt Header Note" value={receiptHeader} onChange={(e) => setReceiptHeader(e.target.value)} />
               <Input label="Receipt Footer Note" value={receiptFooter} onChange={(e) => setReceiptFooter(e.target.value)} />
             </div>
+            {can("settings.manage") && (
+              <div className="pt-1">
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={handleSaveIdentity}
+                  disabled={updateBusiness.isPending || updateSettings.isPending}
+                  data-cy="save-identity-btn"
+                >
+                  <Save className="h-4 w-4" />
+                  {updateBusiness.isPending ? "Saving..." : "Save Showroom Identity"}
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-5">
-            <h3 className="text-sm font-semibold">Tax, Commission & Attendance Rules</h3>
-            <Input label="Default VAT / Tax Rate (%)" type="number" step="0.1" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} />
-            <Input label="Default Seller Commission (%)" type="number" step="0.1" value={commRatePct} onChange={(e) => setCommRatePct(e.target.value)} />
-            <Input label="Lateness Penalty Per Day (₦)" type="number" value={latenessNaira} onChange={(e) => setLatenessNaira(e.target.value)} />
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:col-span-5 flex flex-col justify-between">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Tax, Commission & Attendance Rules</h3>
+              <Input label="Default VAT / Tax Rate (%)" type="number" step="0.1" value={taxRatePct} onChange={(e) => setTaxRatePct(e.target.value)} />
+              <Input label="Default Seller Commission (%)" type="number" step="0.1" value={commRatePct} onChange={(e) => setCommRatePct(e.target.value)} />
+              <Input label="Lateness Penalty Per Day (₦)" type="number" value={latenessNaira} onChange={(e) => setLatenessNaira(e.target.value)} />
+            </div>
             {can("settings.manage") && (
-              <Button className="w-full" onClick={handleSaveGeneral} data-cy="save-settings-btn">
-                <Save className="h-4 w-4" /> Save Configuration
+              <Button
+                className="w-full"
+                onClick={handleSaveRules}
+                disabled={updateSettings.isPending}
+                data-cy="save-settings-btn"
+              >
+                <Save className="h-4 w-4" />
+                {updateSettings.isPending ? "Saving..." : "Save Tax & Rules"}
               </Button>
             )}
           </div>

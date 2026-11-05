@@ -115,7 +115,7 @@ export class EmailNotifierService {
     await this.send(ctx, user.email, passwordChangedEmail({ brand: ctx.brand, name: user.name, when }));
   }
 
-  private async passwordResetCode(organizationId: string, userId: string, code: string): Promise<void> {
+  public async passwordResetCode(organizationId: string, userId: string, code: string): Promise<void> {
     const [ctx, user] = await Promise.all([this.context(organizationId), this.users.findById(organizationId, userId)]);
     if (!user) return;
     await this.send(ctx, user.email, passwordResetCodeEmail({ brand: ctx.brand, name: user.name, code, minutes: env.otpTtlMinutes }));

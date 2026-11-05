@@ -12,6 +12,7 @@ import { dummyHash, hashPassword, verifyPassword } from "../../../shared/utils/p
 import { AuditService } from "../../audit/services/audit.service";
 import { OrganizationService } from "../../organization/services/organization.service";
 import { OnboardingService } from "../../organization/services/onboarding.service";
+import { EmailNotifierService } from "../../notification/services/emailNotifier.service";
 import { UserRepository } from "../../user/repositories/user.repository";
 import type { ClientContext, LoginResultDTO, SessionDTO, TokenPairDTO } from "../dto/auth.dto";
 import { RefreshTokenRepository } from "../repositories/refreshToken.repository";
@@ -307,11 +308,17 @@ export class AuthService {
   async forgotPassword(email: string): Promise<{ message: string; devCode?: string }> {
     const message = "If an account exists for that email, a reset code has been sent to it.";
     const user = await this.users.findContactByEmail(email);
-    if (!user || !user.isActive) return { message };
-    if ((await this.resets.countRecent(user.id, 15)) >= 3) return { message };
+    if (!user || !user.isActive) {
+      console.info(`[auth] forgot-password skipped: no active user found for "${email}"`);
+      return { message };
+    }
+    if ((await this.resets.countRecent(user.id, 15)) >= 3) {
+      console.info(`[auth] forgot-password rate-limited (3 in 15m) for "${email}"`);
+      return { message };
+    }
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     await this.resets.create(user.id, hashRefreshToken(`reset:${user.id}:${code}`), new Date(Date.now() + env.otpTtlMinutes * 60_000));
-    domainEvents.emit("auth.passwordResetRequested", { organizationId: user.organizationId, userId: user.id, code });
+    await EmailNotifierService.Instance.passwordResetCode(user.organizationId, user.id, code);
     return env.isProduction ? { message } : { message, devCode: code };
   }
 

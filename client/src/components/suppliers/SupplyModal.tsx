@@ -10,6 +10,7 @@ import { todayIso } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Select } from "@/components/ui/select"
 import type { Supplier } from "@/types/supplier.types"
 
@@ -98,9 +99,9 @@ export function SupplierEditorModal({ open, supplier, onClose }: SupplierEditorM
           />
           <Input label="Company / Business Name *" value={name} onChange={(e) => setName(e.target.value)} data-cy="supplier-name" />
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           <Input label="Contact Person" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
-          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput label="Phone" value={phone} onChange={setPhone} />
           <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="grid grid-cols-2 gap-2.5">
@@ -201,17 +202,17 @@ export function RecordSupplyModal({ open, onClose }: RecordSupplyModalProps) {
   return (
     <Dialog open={open} onClose={onClose} title="Receive Stock Supply (GRN)" maxWidth="max-w-2xl">
       <div className="space-y-3 text-xs">
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select
             label="Supplier *"
             value={supplierId}
             onChange={(e) => setSupplierId(e.target.value)}
             options={(suppliersQuery.data?.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
-            placeholder="Select..."
+            placeholder="Select supplier..."
           />
-          <Input label="Invoice #" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+          <Input label="Invoice / Waybill #" placeholder="Optional reference" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
           <Input label="Supply Date" type="date" value={supplyDate} onChange={(e) => setSupplyDate(e.target.value)} />
-          <Input label="Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <Input label="Payment Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
 
         <div className="flex items-end gap-2">

@@ -16,6 +16,7 @@ import { formatDate, newClientRef, startOfMonthIso, todayIso } from "@/lib/utils
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Select } from "@/components/ui/select"
 import type { Customer } from "@/types/customer.types"
 
@@ -78,7 +79,7 @@ export function CustomerEditorModal({ open, customer, onClose }: CustomerEditorM
       <div className="space-y-3">
         <Input label="Full Name *" value={name} onChange={(e) => setName(e.target.value)} data-cy="customer-name" />
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <Input label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} data-cy="customer-phone" />
+          <PhoneInput label="Phone Number" value={phone} onChange={setPhone} data-cy="customer-phone" />
           <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

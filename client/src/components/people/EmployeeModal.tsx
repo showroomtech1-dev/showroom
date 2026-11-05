@@ -14,6 +14,7 @@ import { todayIso } from "@/lib/utils"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Select } from "@/components/ui/select"
 import type { Employee, StaffLoan } from "@/types/employee.types"
 
@@ -113,8 +114,8 @@ export function EmployeeEditorModal({ open, employee, onClose }: EmployeeEditorM
           <Input label="Last Name *" value={lastName} onChange={(e) => setLastName(e.target.value)} data-cy="emp-last-name" />
           <Input label="Job Title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
-          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          <PhoneInput label="Phone" value={phone} onChange={setPhone} />
           <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>

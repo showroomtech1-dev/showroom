@@ -111,11 +111,12 @@ export class ProductService {
       },
       tx
     );
-    if (v.openingQuantity && v.openingQuantity > 0) {
+    const openingQty = v.openingQuantity ?? v.openingStock ?? 0;
+    if (openingQty > 0) {
       await this.stock.move(
         actor,
         actor.organizationId,
-        { branchId, variantId: id, productId, delta: v.openingQuantity, type: "opening", unitCost: costPrice, note: "Opening stock", label: `${productName} (${name})` },
+        { branchId, variantId: id, productId, delta: openingQty, type: "opening", unitCost: costPrice, note: "Opening stock", label: `${productName} (${name})` },
         tx
       );
     }
@@ -128,7 +129,7 @@ export class ProductService {
     const hasVariants = Boolean(data.variants && data.variants.length > 0);
     const variantInputs: VariantInput[] = hasVariants
       ? (data.variants as VariantInput[])
-      : [{ name: "Default", sku: data.sku, barcode: data.barcode, openingQuantity: data.openingQuantity }];
+      : [{ name: "Default", sku: data.sku, barcode: data.barcode, openingQuantity: data.openingQuantity ?? data.openingStock }];
     await this.assertCodesFree(actor, variantInputs);
     const branchId = await this.branches.resolveForWrite(actor, data.branchId);
 
@@ -164,15 +165,47 @@ export class ProductService {
     const before = await this.products.findById(actor.organizationId, id);
     if (!before) throw AppError.notFound("Product not found");
     await this.assertRefs(actor, data.categoryId, data.supplierId);
-    const { applyPricesToVariants, ...fields } = data;
+    const { applyPricesToVariants, openingQuantity, openingStock, branchId, ...fields } = data;
+    const targetStock = openingQuantity ?? openingStock;
+    const resolvedBranchId =
+      targetStock !== undefined ? await this.branches.resolveForWrite(actor, branchId) : null;
+
     await inTransaction(async (tx) => {
-      await this.products.update(actor.organizationId, id, fields, tx);
+      if (Object.keys(fields).length > 0) {
+        await this.products.update(actor.organizationId, id, fields, tx);
+      }
       if (applyPricesToVariants && (data.costPrice !== undefined || data.sellingPrice !== undefined)) {
         await this.variants.updatePricesForProduct(id, { costPrice: data.costPrice, sellingPrice: data.sellingPrice }, tx);
       } else if (!before.hasVariants && (data.costPrice !== undefined || data.sellingPrice !== undefined)) {
         await this.variants.updatePricesForProduct(id, { costPrice: data.costPrice, sellingPrice: data.sellingPrice }, tx);
       }
-      await this.audit.log(actor, { action: "update", entityType: "product", entityId: id, summary: `Updated product ${before.name}`, before: { ...before }, after: fields }, tx);
+      if (targetStock !== undefined && resolvedBranchId) {
+        const variants = await this.variants.listByProduct(id);
+        const primaryVariant = variants[0];
+        if (primaryVariant) {
+          const currentQty = await this.stockRepo.quantity(primaryVariant.id, resolvedBranchId, tx);
+          const delta = targetStock - currentQty;
+          if (delta !== 0) {
+            await this.stock.move(
+              actor,
+              actor.organizationId,
+              {
+                branchId: resolvedBranchId,
+                variantId: primaryVariant.id,
+                productId: id,
+                delta,
+                type: currentQty === 0 ? "opening" : "adjustment",
+                unitCost: data.costPrice ?? before.costPrice ?? 0,
+                reason: currentQty === 0 ? null : "correction",
+                note: currentQty === 0 ? "Opening stock" : "Stock updated from product editor",
+                label: `${data.name ?? before.name} (${primaryVariant.name})`,
+              },
+              tx
+            );
+          }
+        }
+      }
+      await this.audit.log(actor, { action: "update", entityType: "product", entityId: id, summary: `Updated product ${before.name}`, before: { ...before }, after: { ...fields, ...(targetStock !== undefined ? { stockQuantity: targetStock } : {}) } }, tx);
     });
     return this.get(actor, id);
   }
@@ -181,10 +214,30 @@ export class ProductService {
     assertPermission(actor, "product.manage");
     const product = await this.products.findById(actor.organizationId, id);
     if (!product) throw AppError.notFound("Product not found");
-    if ((await this.products.totalStock(id)) !== 0) {
-      throw AppError.conflict("This product still has stock. Adjust it to zero first, or deactivate the product.");
-    }
+    const variants = await this.variants.listByProduct(id);
+    const perBranch = await this.stockRepo.byBranch(variants.map((v) => v.id));
     await inTransaction(async (tx) => {
+      for (const b of perBranch) {
+        if (b.quantity !== 0) {
+          const v = variants.find((x) => x.id === b.variantId);
+          await this.stock.move(
+            actor,
+            actor.organizationId,
+            {
+              branchId: b.branchId,
+              variantId: b.variantId,
+              productId: id,
+              delta: -b.quantity,
+              type: "adjustment",
+              unitCost: v?.costPrice ?? product.costPrice ?? 0,
+              reason: "correction",
+              note: "Product moved to trash",
+              label: `${product.name} (${v?.name ?? "Default"})`,
+            },
+            tx
+          );
+        }
+      }
       await this.products.softDelete(actor.organizationId, id, tx);
       await this.audit.log(actor, { action: "delete", entityType: "product", entityId: id, summary: `Deleted product ${product.name}`, before: { ...product } }, tx);
     });
@@ -206,23 +259,51 @@ export class ProductService {
 
   async updateVariant(actor: Actor, productId: string, variantId: string, data: UpdateVariantInput): Promise<ProductDetailDTO> {
     assertPermission(actor, "product.manage");
+    const product = await this.products.findById(actor.organizationId, productId);
     const variants = await this.variants.listByProduct(productId);
     const current = variants.find((v) => v.id === variantId);
-    if (!current || !(await this.products.findById(actor.organizationId, productId))) throw AppError.notFound("Variant not found");
+    if (!current || !product) throw AppError.notFound("Variant not found");
     await this.assertCodesFree(actor, [{ sku: data.sku, barcode: data.barcode }], variantId);
+    const { openingQuantity, openingStock, branchId, ...variantFields } = data;
+    const targetStock = openingQuantity ?? openingStock;
+    const resolvedBranchId =
+      targetStock !== undefined ? await this.branches.resolveForWrite(actor, branchId) : null;
+
     // An explicit name wins; otherwise a changed size/colour/model renames the variant from its attributes.
-    const attributesChanged = data.size !== undefined || data.color !== undefined || data.model !== undefined;
+    const attributesChanged = variantFields.size !== undefined || variantFields.color !== undefined || variantFields.model !== undefined;
     const name =
-      data.name?.trim() ||
+      variantFields.name?.trim() ||
       (attributesChanged
         ? variantName({
-            size: data.size !== undefined ? data.size : current.size,
-            color: data.color !== undefined ? data.color : current.color,
-            model: data.model !== undefined ? data.model : current.model,
+            size: variantFields.size !== undefined ? variantFields.size : current.size,
+            color: variantFields.color !== undefined ? variantFields.color : current.color,
+            model: variantFields.model !== undefined ? variantFields.model : current.model,
           })
         : current.name);
     await inTransaction(async (tx) => {
-      await this.variants.update(actor.organizationId, variantId, { ...data, name }, tx);
+      await this.variants.update(actor.organizationId, variantId, { ...variantFields, name }, tx);
+      if (targetStock !== undefined && resolvedBranchId) {
+        const currentQty = await this.stockRepo.quantity(variantId, resolvedBranchId, tx);
+        const delta = targetStock - currentQty;
+        if (delta !== 0) {
+          await this.stock.move(
+            actor,
+            actor.organizationId,
+            {
+              branchId: resolvedBranchId,
+              variantId,
+              productId,
+              delta,
+              type: currentQty === 0 ? "opening" : "adjustment",
+              unitCost: variantFields.costPrice ?? current.costPrice ?? 0,
+              reason: currentQty === 0 ? null : "correction",
+              note: currentQty === 0 ? "Opening stock" : "Variant stock updated",
+              label: `${product.name} (${name})`,
+            },
+            tx
+          );
+        }
+      }
       await this.audit.log(actor, { action: "update", entityType: "product_variant", entityId: variantId, summary: `Updated variant ${current.sku}`, before: { ...current }, after: data }, tx);
     });
     return this.get(actor, productId);
@@ -230,12 +311,33 @@ export class ProductService {
 
   async removeVariant(actor: Actor, productId: string, variantId: string): Promise<ProductDetailDTO> {
     assertPermission(actor, "product.manage");
+    const product = await this.products.findById(actor.organizationId, productId);
     const variants = await this.variants.listByProduct(productId);
     const current = variants.find((v) => v.id === variantId);
-    if (!current || !(await this.products.findById(actor.organizationId, productId))) throw AppError.notFound("Variant not found");
+    if (!current || !product) throw AppError.notFound("Variant not found");
     if (variants.length === 1) throw AppError.badRequest("A product needs at least one variant — delete the product instead");
-    if (current.quantity !== 0) throw AppError.conflict("This variant still has stock. Adjust it to zero first.");
+    const perBranch = await this.stockRepo.byBranch([variantId]);
     await inTransaction(async (tx) => {
+      for (const b of perBranch) {
+        if (b.quantity !== 0) {
+          await this.stock.move(
+            actor,
+            actor.organizationId,
+            {
+              branchId: b.branchId,
+              variantId,
+              productId,
+              delta: -b.quantity,
+              type: "adjustment",
+              unitCost: current.costPrice ?? product.costPrice ?? 0,
+              reason: "correction",
+              note: "Variant deleted",
+              label: `${product.name} (${current.name})`,
+            },
+            tx
+          );
+        }
+      }
       await this.variants.softDelete(actor.organizationId, variantId, tx);
       await this.audit.log(actor, { action: "delete", entityType: "product_variant", entityId: variantId, summary: `Deleted variant ${current.sku}` }, tx);
     });

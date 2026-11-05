@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ImagePlus, Plus, Trash2 } from "lucide-react"
+import { Edit2, ImagePlus, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -53,7 +53,7 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
       setCostNaira(product.costPrice !== undefined ? String(fromKobo(product.costPrice)) : "")
       setPriceNaira(String(fromKobo(product.minPrice)))
       setReorderLevel(String(product.reorderLevel))
-      setOpeningStock("0")
+      setOpeningStock(String(product.quantity ?? 0))
     } else {
       setName("")
       setBrand("")
@@ -84,8 +84,8 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
           costPrice: toKobo(costNaira),
           sellingPrice: toKobo(priceNaira),
           reorderLevel: Number(reorderLevel) || 0,
-          openingStock: !product ? Number(openingStock) || 0 : undefined,
-          branchId: !product && activeBranchId ? activeBranchId : undefined,
+          openingQuantity: Math.max(0, Math.floor(Number(openingStock) || 0)),
+          branchId: activeBranchId ? activeBranchId : undefined,
         },
       })
       toast.success(product ? "Product updated" : "Product created")
@@ -96,7 +96,7 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={product ? "Edit Product" : "New Product"}>
+    <Dialog open={open} onClose={onClose} title={product ? "Edit Product" : "New Product"} maxWidth="max-w-xl">
       <div className="space-y-3.5">
         <Input label="Product Name *" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Samsung 65-inch QLED Smart TV" data-cy="product-name" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -124,11 +124,16 @@ export function ProductEditorModal({ open, product, onClose }: ProductEditorModa
           <Input label="Cost Price (₦)" type="number" placeholder="0.00" value={costNaira} onChange={(e) => setCostNaira(e.target.value)} />
           <Input label="Selling Price (₦) *" type="number" placeholder="0.00" value={priceNaira} onChange={(e) => setPriceNaira(e.target.value)} data-cy="product-price" />
         </div>
-        <div className={product ? "grid grid-cols-1 gap-3" : "grid grid-cols-2 gap-3"}>
-          <Input label="Reorder Level" type="number" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} />
-          {!product && (
-            <Input label="Opening Stock" type="number" value={openingStock} onChange={(e) => setOpeningStock(e.target.value)} />
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Reorder Level" type="number" min={0} value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} />
+          <Input
+            label={product ? "Opening / Current Stock" : "Opening Stock"}
+            type="number"
+            min={0}
+            value={openingStock}
+            onChange={(e) => setOpeningStock(e.target.value)}
+            data-cy="product-opening-stock"
+          />
         </div>
         <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800">
           <Button variant="outline" onClick={onClose}>
@@ -156,6 +161,7 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
   const uploadPhotos = useUploadProductPhotos()
   const deletePhoto = useDeleteProductPhoto()
 
+  const [editVariantId, setEditVariantId] = useState<string | null>(null)
   const [vName, setVName] = useState("")
   const [vSku, setVSku] = useState("")
   const [vCost, setVCost] = useState("")
@@ -164,30 +170,36 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
 
   const p = productQuery.data
 
-  const handleAddVariant = async () => {
+  const resetVariantForm = () => {
+    setEditVariantId(null)
+    setVName("")
+    setVSku("")
+    setVCost("")
+    setVPrice("")
+    setVOpening("0")
+  }
+
+  const handleSaveVariant = async () => {
     if (!p || !vName.trim() || toKobo(vPrice) <= 0) {
       return toast.error("Enter variant name and selling price")
     }
     try {
       await saveVariant.mutateAsync({
         productId: p.id,
+        variantId: editVariantId ?? undefined,
         payload: {
           name: vName.trim(),
           sku: vSku.trim() || undefined,
           costPrice: toKobo(vCost),
           sellingPrice: toKobo(vPrice),
-          openingStock: Number(vOpening) || 0,
+          openingQuantity: Math.max(0, Math.floor(Number(vOpening) || 0)),
           branchId: activeBranchId || undefined,
         },
       })
-      toast.success("Variant added")
-      setVName("")
-      setVSku("")
-      setVCost("")
-      setVPrice("")
-      setVOpening("0")
+      toast.success(editVariantId ? "Variant updated" : "Variant added")
+      resetVariantForm()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not add variant")
+      toast.error(err instanceof Error ? err.message : "Could not save variant")
     }
   }
 
@@ -221,52 +233,137 @@ export function ProductDetailModal({ productId, onClose }: ProductDetailModalPro
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {p.variants.map((v) => (
-                    <tr key={v.id}>
-                      <td className="px-3 py-2 font-medium">{v.name}</td>
-                      <td className="px-3 py-2 font-mono text-slate-500">{v.sku}</td>
-                      {can("inventory.cost.view") && (
-                        <td className="px-3 py-2 text-right">
-                          {v.costPrice !== undefined ? formatMoney(v.costPrice) : "—"}
-                        </td>
-                      )}
-                      <td className="px-3 py-2 text-right font-semibold">{formatMoney(v.sellingPrice)}</td>
-                      <td className="px-3 py-2 text-right font-bold">{v.quantity}</td>
-                      <td className="px-3 py-2 text-right">
-                        {p.variants.length > 1 && can("product.delete") && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await deleteVariant.mutateAsync({ productId: p.id, variantId: v.id })
-                                toast.success("Variant removed")
-                              } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Cannot remove variant")
-                              }
-                            }}
-                            className="text-slate-400 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                  {p.variants.map((v) => {
+                    const isEditing = editVariantId === v.id
+                    return (
+                      <tr
+                        key={v.id}
+                        className={
+                          isEditing
+                            ? "bg-indigo-50/60 dark:bg-indigo-950/30"
+                            : "hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
+                        }
+                      >
+                        <td className="px-3 py-2.5 font-medium whitespace-nowrap">{v.name}</td>
+                        <td className="px-3 py-2.5 font-mono text-slate-500 whitespace-nowrap">{v.sku}</td>
+                        {can("inventory.cost.view") && (
+                          <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                            {v.costPrice !== undefined ? formatMoney(v.costPrice) : "—"}
+                          </td>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{formatMoney(v.sellingPrice)}</td>
+                        <td className="px-3 py-2.5 text-right font-bold whitespace-nowrap">{v.quantity}</td>
+                        <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            {can("product.update") && (
+                              <button
+                                type="button"
+                                title="Edit variant"
+                                onClick={() => {
+                                  setEditVariantId(v.id)
+                                  setVName(v.name)
+                                  setVSku(v.sku)
+                                  setVCost(v.costPrice !== undefined ? String(fromKobo(v.costPrice)) : "")
+                                  setVPrice(String(fromKobo(v.sellingPrice)))
+                                  setVOpening(String(v.quantity ?? 0))
+                                }}
+                                className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {p.variants.length > 1 && can("product.delete") && (
+                              <button
+                                type="button"
+                                title="Delete variant"
+                                onClick={async () => {
+                                  try {
+                                    await deleteVariant.mutateAsync({ productId: p.id, variantId: v.id })
+                                    if (editVariantId === v.id) resetVariantForm()
+                                    toast.success("Variant removed")
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : "Cannot remove variant")
+                                  }
+                                }}
+                                className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
 
           {can("product.update") && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/30">
-              <p className="mb-2 font-semibold">Add Variant (Size / Color / Model)</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                <Input placeholder="Name (e.g. 65-inch)" value={vName} onChange={(e) => setVName(e.target.value)} />
-                <Input placeholder="SKU (Optional)" value={vSku} onChange={(e) => setVSku(e.target.value)} />
-                <Input type="number" placeholder="Cost ₦" value={vCost} onChange={(e) => setVCost(e.target.value)} />
-                <Input type="number" placeholder="Price ₦ *" value={vPrice} onChange={(e) => setVPrice(e.target.value)} />
-                <Button size="sm" onClick={handleAddVariant} disabled={saveVariant.isPending}>
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {editVariantId ? "Edit Variant & Stock" : "Add Variant (Size / Color / Model)"}
+                </p>
+                {editVariantId && (
+                  <button
+                    type="button"
+                    onClick={resetVariantForm}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Input
+                  label="Variant Name *"
+                  placeholder="e.g. 65-inch / Grey"
+                  value={vName}
+                  onChange={(e) => setVName(e.target.value)}
+                />
+                <Input
+                  label="SKU (Optional)"
+                  placeholder="Auto-generated"
+                  value={vSku}
+                  onChange={(e) => setVSku(e.target.value)}
+                />
+                <Input
+                  label={editVariantId ? "Current / Opening Stock" : "Opening Stock"}
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={vOpening}
+                  onChange={(e) => setVOpening(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 items-end">
+                <Input
+                  label="Cost Price (₦)"
+                  type="number"
+                  placeholder="0.00"
+                  value={vCost}
+                  onChange={(e) => setVCost(e.target.value)}
+                />
+                <Input
+                  label="Selling Price (₦) *"
+                  type="number"
+                  placeholder="0.00"
+                  value={vPrice}
+                  onChange={(e) => setVPrice(e.target.value)}
+                />
+                <Button
+                  className="h-10 w-full"
+                  onClick={handleSaveVariant}
+                  disabled={saveVariant.isPending}
+                >
                   <Plus className="h-4 w-4" />
-                  Add
+                  {saveVariant.isPending
+                    ? "Saving..."
+                    : editVariantId
+                      ? "Update Variant"
+                      : "Add Variant"}
                 </Button>
               </div>
             </div>

@@ -73,10 +73,13 @@ export function DialogContent({
   children: React.ReactNode
   onClose?: () => void
 }) {
+  const hasCustomMaxWidth = Boolean(className && /\bmax-w-/.test(className))
+
   return (
     <div
       className={cn(
-        "relative z-10 my-auto flex w-full max-h-[88vh] flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900",
+        "relative z-10 my-auto flex w-full max-h-[90vh] flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900",
+        !hasCustomMaxWidth && "max-w-xl",
         className
       )}
       onClick={(e) => e.stopPropagation()}

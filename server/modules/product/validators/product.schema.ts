@@ -24,6 +24,7 @@ export const variantInput = z.object({
   sellingPrice: money.optional(),
   reorderLevel: reorder.optional().nullable(),
   openingQuantity: opening.optional(),
+  openingStock: opening.optional(),
 });
 
 export const createProductSchema = z.object({
@@ -41,6 +42,7 @@ export const createProductSchema = z.object({
     barcode: code(64),
     /** Opening stock for a product without variants. */
     openingQuantity: opening.optional(),
+    openingStock: opening.optional(),
     /** Branch the opening stock goes into (defaults to the user's / main branch). */
     branchId: uuid.optional(),
     variants: z.array(variantInput).max(100).optional(),
@@ -63,6 +65,10 @@ export const updateProductSchema = z.object({
       isActive: z.boolean(),
       /** Also apply the new cost/selling price to every variant. */
       applyPricesToVariants: z.boolean(),
+      /** Optional opening / updated stock quantity for the product's primary variant. */
+      openingQuantity: opening,
+      openingStock: opening,
+      branchId: uuid,
     })
     .partial()
     .refine((b) => Object.keys(b).length > 0, "Nothing to update"),
@@ -87,6 +93,9 @@ export const updateVariantSchema = z.object({
       sellingPrice: money,
       reorderLevel: reorder.nullable(),
       isActive: z.boolean(),
+      openingQuantity: opening,
+      openingStock: opening,
+      branchId: uuid,
     })
     .partial()
     .refine((b) => Object.keys(b).length > 0, "Nothing to update"),

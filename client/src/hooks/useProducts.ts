@@ -51,7 +51,12 @@ export function useSaveProduct() {
       if (!res.success || !res.data) throw new ApiError(res.message, res.statusCode, res.errors)
       return res.data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] })
+      qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: ["stock-levels"] })
+      qc.invalidateQueries({ queryKey: ["stock-movements"] })
+    },
   })
 }
 
@@ -62,7 +67,12 @@ export function useDeleteProduct() {
       const res = await ProductEndpoints.remove(id)
       if (!res.success) throw new ApiError(res.message, res.statusCode)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PRODUCTS_KEY] })
+      qc.invalidateQueries({ queryKey: [PRODUCT_CATEGORIES_KEY] })
+      qc.invalidateQueries({ queryKey: ["stock-levels"] })
+      qc.invalidateQueries({ queryKey: ["stock-movements"] })
+    },
   })
 }
 

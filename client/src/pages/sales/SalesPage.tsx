@@ -8,6 +8,7 @@ import { SaleEndpoints } from "@/endpoints/sale.endpoints"
 import { formatMoney } from "@/lib/money"
 import { formatDate, formatDateTime, todayIso } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { DatePickerField } from "@/components/ui/date-picker"
 import { Select } from "@/components/ui/select"
 import { SearchInput } from "@/components/shared/SearchInput"
 import { StatusBadge } from "@/components/shared/StatusBadge"
@@ -224,23 +225,22 @@ export default function SalesPage() {
         </div>
       )}
 
-      {tab === "daily" && dailyQuery.data && (
+      {tab === "daily" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Summary Date</span>
-            <input
-              type="date"
-              value={dailyDate}
-              onChange={(e) => setDailyDate(e.target.value)}
-              className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs dark:border-slate-700 dark:bg-slate-800"
-            />
+            <div className="w-40">
+              <DatePickerField value={dailyDate} onChange={setDailyDate} data-cy="daily-summary-date" />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="Gross Sales" value={formatMoney(dailyQuery.data.sales.totalSales)} subtitle={`${dailyQuery.data.sales.salesCount} sales`} />
-            <StatCard label="Net Sales" value={formatMoney(dailyQuery.data.sales.netSales)} />
-            <StatCard label="Money Received" value={formatMoney(dailyQuery.data.totalReceived)} tone="emerald" />
-            <StatCard label="New Credit Due" value={formatMoney(dailyQuery.data.sales.balanceDue)} tone="amber" />
-          </div>
+          {dailyQuery.data && (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard label="Gross Sales" value={formatMoney(dailyQuery.data.sales.totalSales)} subtitle={`${dailyQuery.data.sales.salesCount} sales`} />
+              <StatCard label="Net Sales" value={formatMoney(dailyQuery.data.sales.netSales)} />
+              <StatCard label="Money Received" value={formatMoney(dailyQuery.data.totalReceived)} tone="emerald" />
+              <StatCard label="New Credit Due" value={formatMoney(dailyQuery.data.sales.balanceDue)} tone="amber" />
+            </div>
+          )}
         </div>
       )}
 

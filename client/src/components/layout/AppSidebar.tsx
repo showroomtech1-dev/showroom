@@ -1,6 +1,18 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { ChevronLeft, ChevronRight, Menu, Store, X } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Store,
+  X,
+} from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { usePersistedState } from "@/hooks/usePersistedState"
 import { NAV_SECTIONS } from "./nav"
 import { cn } from "@/lib/utils"
 
@@ -21,11 +33,38 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { canAny, business } = useAuth()
   const location = useLocation()
+  const [collapsedSections, setCollapsedSections] = usePersistedState<Record<string, boolean>>(
+    "sidebar_collapsed_sections",
+    {}
+  )
+
+  const toggleSection = (title: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }))
+  }
 
   const visibleSections = NAV_SECTIONS.map((sec) => ({
     ...sec,
     items: sec.items.filter((item) => !item.anyOf || canAny(item.anyOf)),
   })).filter((sec) => sec.items.length > 0)
+
+  const allSectionsCollapsed =
+    visibleSections.length > 0 &&
+    visibleSections.every((sec) => Boolean(collapsedSections[sec.title]))
+
+  const toggleAllSections = () => {
+    if (allSectionsCollapsed) {
+      setCollapsedSections({})
+    } else {
+      const next: Record<string, boolean> = {}
+      for (const sec of visibleSections) {
+        next[sec.title] = true
+      }
+      setCollapsedSections(next)
+    }
+  }
 
   const mobilePrimaryItems = visibleSections
     .flatMap((s) => s.items)
@@ -35,7 +74,7 @@ export function AppSidebar({
   const renderNavContent = (isCollapsed: boolean, isMobile = false) => (
     <div className="flex h-full flex-col bg-slate-900 text-slate-200 dark:bg-slate-950 border-r border-slate-800">
       {/* Brand header */}
-      <div className="flex h-16 items-center justify-between border-b border-slate-800/80 px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 px-4">
         <div className="flex items-center gap-3 min-w-0">
           {business?.logoUrl ? (
             <img src={business.logoUrl} alt={business.name} className="h-9 w-9 rounded-xl object-cover shrink-0" />
@@ -65,6 +104,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
+            data-cy="sidebar-collapse-toggle"
             className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -73,51 +113,130 @@ export function AppSidebar({
         )}
       </div>
 
-      {/* Nav Links */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {visibleSections.map((section) => (
-          <div key={section.title} className="space-y-1">
-            {!isCollapsed && (
-              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {section.title}
-              </p>
-            )}
-            {section.items.map((item) => {
-              const Icon = item.icon
-              const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => isMobile && onCloseMobile()}
-                  data-cy={`nav-${item.path.replace("/", "")}`}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all",
-                    active
-                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-                      : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100",
-                    isCollapsed && "justify-center px-2"
-                  )}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {!isCollapsed && item.badge && (
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                        active ? "bg-white/20 text-white" : "bg-indigo-500/20 text-indigo-300"
-                      )}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </NavLink>
-              )
-            })}
+      {/* Collapsible Nav Sections */}
+      <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+        {!isCollapsed && visibleSections.length > 1 && (
+          <div className="flex items-center justify-between px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              Navigation
+            </span>
+            <button
+              type="button"
+              onClick={toggleAllSections}
+              data-cy="sidebar-collapse-all-btn"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-indigo-400 transition-colors hover:bg-slate-800 hover:text-indigo-300 cursor-pointer"
+            >
+              {allSectionsCollapsed ? (
+                <>
+                  <ChevronsUpDown className="h-3 w-3" />
+                  Expand All
+                </>
+              ) : (
+                <>
+                  <ChevronsDownUp className="h-3 w-3" />
+                  Collapse All
+                </>
+              )}
+            </button>
           </div>
-        ))}
+        )}
+        {visibleSections.map((section) => {
+          const isSectionCollapsed = !isCollapsed && Boolean(collapsedSections[section.title])
+          const hasActiveItem = section.items.some(
+            (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+          )
+
+          return (
+            <div key={section.title} className="space-y-1">
+              {!isCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  data-cy={`nav-section-${section.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+                  className="group flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-slate-200 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    {section.title}
+                    {isSectionCollapsed && hasActiveItem && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    )}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200 group-hover:text-slate-300",
+                      isSectionCollapsed && "-rotate-90"
+                    )}
+                  />
+                </button>
+              )}
+
+              {!isSectionCollapsed && (
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon
+                    const active =
+                      location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => isMobile && onCloseMobile()}
+                        data-cy={`nav-${item.path.replace("/", "")}`}
+                        className={cn(
+                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all",
+                          active
+                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
+                            : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100",
+                          isCollapsed && "justify-center px-2"
+                        )}
+                        title={isCollapsed ? item.label : undefined}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+                        {!isCollapsed && item.badge && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                              active ? "bg-white/20 text-white" : "bg-indigo-500/20 text-indigo-300"
+                            )}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
+
+      {/* Desktop Collapse Footer */}
+      {!isMobile && (
+        <div className="hidden lg:block shrink-0 border-t border-slate-800/80 p-2.5">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            data-cy="sidebar-footer-collapse"
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-100 cursor-pointer",
+              isCollapsed && "justify-center px-2"
+            )}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4 shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose className="h-4 w-4 shrink-0" />
+                <span className="truncate">Collapse Sidebar</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   )
 

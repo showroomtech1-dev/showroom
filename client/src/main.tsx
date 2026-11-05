@@ -9,6 +9,14 @@ import { Toaster } from "@/components/ui/sonner"
 import App from "./App"
 import "./index.css"
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Service worker registration is non-fatal
+    })
+  })
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

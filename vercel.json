@@ -3,9 +3,24 @@
   "installCommand": "npm --prefix client install",
   "buildCommand": "npm --prefix client run build",
   "outputDirectory": "client/dist",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
+      ]
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!assets/|favicon\\.ico|robots\\.txt).*)",
+      "source": "/((?!assets/|icons/|sw\\.js|manifest\\.webmanifest|favicon\\.ico|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ]

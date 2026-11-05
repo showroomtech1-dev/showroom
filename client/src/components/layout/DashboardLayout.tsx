@@ -19,6 +19,7 @@ import { useClockInOut, useTodayAttendance } from "@/hooks/useEmployees"
 import { AppSidebar } from "./AppSidebar"
 import { NotificationBell } from "./NotificationBell"
 import { PreviewBanner } from "./PreviewBanner"
+import { PwaInstallButton } from "./PwaInstallButton"
 import { Button } from "@/components/ui/button"
 
 export function DashboardLayout() {
@@ -98,6 +99,8 @@ export function DashboardLayout() {
             </div>
 
             <div className="flex items-center gap-2">
+              <PwaInstallButton />
+
               {/* Quick POS button on desktop/tablet */}
               {can("sale.create") && (
                 <Button

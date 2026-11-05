@@ -6,18 +6,24 @@ import { AuthEndpoints } from "@/endpoints/auth.endpoints"
 import { tokenStorage } from "@/lib/storage"
 import { changePasswordFormSchema } from "@/lib/validation"
 import { useClockInOut, useMyEmployeeProfile, useTodayAttendance } from "@/hooks/useEmployees"
+import { useBranches } from "@/hooks/useOrganization"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { Select } from "@/components/ui/select"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { formatDateTime } from "@/lib/utils"
 
 export default function ProfilePage() {
-  const { user, permissions, refreshSession, can } = useAuth()
+  const { user, permissions, refreshSession, can, setSelectedBranchId } = useAuth()
   const [name, setName] = useState(user?.name ?? "")
   const [phone, setPhone] = useState(user?.phone ?? "")
+  const [branchId, setBranchId] = useState(user?.branchId ?? "")
   const [savingProfile, setSavingProfile] = useState(false)
+
+  const canChangeHomeBranch = can("branch.all") || can("user.manage")
+  const { data: branches = [] } = useBranches(false)
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -35,9 +41,16 @@ export default function ProfilePage() {
       return
     }
     setSavingProfile(true)
-    const res = await AuthEndpoints.updateMe({ name: name.trim(), phone: phone.trim() || null })
+    const res = await AuthEndpoints.updateMe({
+      name: name.trim(),
+      phone: phone.trim() || null,
+      ...(canChangeHomeBranch ? { branchId: branchId || null } : {}),
+    })
     setSavingProfile(false)
     if (res.success) {
+      if (canChangeHomeBranch && branchId) {
+        setSelectedBranchId(branchId)
+      }
       await refreshSession()
       toast.success("Profile updated")
     } else {
@@ -108,17 +121,32 @@ export default function ProfilePage() {
                 placeholder="803 123 4567"
                 data-cy="profile-phone"
               />
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
                   <p className="text-[11px] font-semibold uppercase text-slate-400">Assigned Role</p>
                   <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">{user?.roleName}</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                  <p className="text-[11px] font-semibold uppercase text-slate-400">Home Branch</p>
-                  <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {user?.branchName || "All Branches"}
-                  </p>
-                </div>
+                {canChangeHomeBranch ? (
+                  <Select
+                    id="profile-branch"
+                    label="Home Branch"
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                    placeholder="All Branches"
+                    options={branches.map((b) => ({
+                      value: b.id,
+                      label: `${b.name}${b.isMain ? " (Main)" : ""}`,
+                    }))}
+                    data-cy="profile-branch"
+                  />
+                ) : (
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                    <p className="text-[11px] font-semibold uppercase text-slate-400">Home Branch</p>
+                    <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {user?.branchName || "All Branches"}
+                    </p>
+                  </div>
+                )}
               </div>
               <Button type="submit" disabled={savingProfile} data-cy="profile-save">
                 {savingProfile ? "Saving..." : "Save Profile"}

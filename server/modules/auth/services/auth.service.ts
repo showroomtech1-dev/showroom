@@ -256,7 +256,16 @@ export class AuthService {
   }
 
   async updateProfile(actor: Actor, data: UpdateProfileInput): Promise<SessionDTO> {
-    await this.users.update(actor.organizationId, actor.id, data);
+    const canSwitchBranch =
+      actor.permissions.includes("*") ||
+      actor.permissions.includes("branch.all") ||
+      actor.permissions.includes("user.manage");
+    const updatePayload = {
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.phone !== undefined ? { phone: data.phone } : {}),
+      ...(canSwitchBranch && data.branchId !== undefined ? { branchId: data.branchId } : {}),
+    };
+    await this.users.update(actor.organizationId, actor.id, updatePayload);
     PermissionCache.invalidateUser(actor.id);
     const fresh = (await resolveActor(actor.id, actor.organizationId)) ?? actor;
     return this.session(fresh);

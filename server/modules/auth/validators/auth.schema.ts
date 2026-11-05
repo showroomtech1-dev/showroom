@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PASSWORD_RULE } from "../../../shared/utils/password";
-import { email, optionalText, phone, requiredText } from "../../../shared/validation/common";
+import { email, optionalText, phone, requiredText, uuid } from "../../../shared/validation/common";
 
 export const passwordField = z
   .string()
@@ -49,6 +49,7 @@ export const updateProfileSchema = z.object({
     .object({
       name: requiredText(120),
       phone: phone.optional().nullable(),
+      branchId: uuid.optional().nullable(),
     })
     .partial()
     .refine((b) => Object.keys(b).length > 0, "Nothing to update"),

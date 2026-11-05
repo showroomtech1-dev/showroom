@@ -169,7 +169,7 @@ export function AppSidebar({
         <button
           type="button"
           onClick={onOpenMobile}
-          className="flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 cursor-pointer"
+          className="flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 cursor-pointer"
           data-cy="mobile-menu-more"
         >
           <Menu className="h-5 w-5" />

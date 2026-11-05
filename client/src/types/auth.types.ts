@@ -102,4 +102,5 @@ export interface ForgotPasswordResult {
 export interface UpdateProfilePayload {
   name?: string
   phone?: string | null
+  branchId?: string | null
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "showroompro-pwa-v3";
+const CACHE_NAME = "showroompro-pwa-v4";
 const API_CACHE = "showroompro-api-v1";
 // GET endpoints cached for offline selling (paths match whatever host the API runs on).
 const OFFLINE_API = [
@@ -74,6 +74,9 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+
+  // The deployed-version marker must always come from the network, or open tabs can never see an update.
+  if (url.pathname === "/version.json") return;
 
   // Never cache other API calls, Vite dev module requests, or external OAuth scripts
   if (

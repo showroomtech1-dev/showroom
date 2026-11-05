@@ -6,6 +6,7 @@ import { queryClient } from "@/lib/queryClient"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { Toaster } from "@/components/ui/sonner"
+import { UpdateBanner } from "@/components/layout/UpdateBanner"
 import App from "./App"
 import "./index.css"
 
@@ -44,6 +45,7 @@ createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <App />
             <Toaster />
+            <UpdateBanner />
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
